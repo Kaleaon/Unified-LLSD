@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj" />
+  <Project Path="Linkpoint.LLSD/Linkpoint.LLSD.csproj" />
+</Solution>

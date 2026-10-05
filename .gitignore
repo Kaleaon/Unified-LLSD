@@ -2,3 +2,7 @@
 /.gradle/
 /.idea/
 /*.iml
+bin/
+obj/
+*.user
+*.suo

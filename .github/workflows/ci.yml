@@ -38,3 +38,17 @@ jobs:
 
       - name: Verify Protocol Conformance
         run: python3 tools/verify_llsd_conformance.py
+
+  csharp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build C# SDK Package
+        run: dotnet build csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj -c Release
+      - name: Run C# SDK Tests
+        run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
+
