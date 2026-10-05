@@ -1,0 +1,15 @@
+# Build artifacts
+build/
+bin/
+obj/
+dist/
+node_modules/
+target/
+.gradle/
+.idea/
+*.exe
+*.dll
+*.o
+*.a
+*.so
+*.dylib
