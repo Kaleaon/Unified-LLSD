@@ -1,3 +1,10 @@
+/build/
+/.gradle/
+/.idea/
+/*.iml
+/.kotlin/
+node_modules/
+dist/
 # Build artifacts
 build/
 bin/
