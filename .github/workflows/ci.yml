@@ -7,6 +7,18 @@ on:
     branches: [ main, master ]
 
 jobs:
+  conformance-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate Language Bindings
+        run: python3 scripts/generate_bindings.py
+      - name: Run Schema Conformance Tests
+        run: python3 tests/conformance_test.py
   build:
     runs-on: ubuntu-latest
     steps:
