@@ -92,5 +92,18 @@ class TestAssetSchemaConformance(unittest.TestCase):
         self.assertEqual(parsed_joints[0][0], 0)
         self.assertEqual(parsed_joints[1][0], 165)  # Successfully parses joint 165 > 163!
 
+    def test_typescript_bindings_exist(self):
+        """Verify generated TypeScript bindings file and key schema constants."""
+        ts_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "typescript", "AssetSchemaAdapter.ts")
+        self.assertTrue(os.path.exists(ts_binding_path), "TypeScript bindings file must exist")
+
+        with open(ts_binding_path, "r") as f:
+            content = f.read()
+
+        self.assertIn("MAX_RIGGED_MESH_JOINTS: number = 256", content)
+        self.assertIn("JOINT_SENTINEL: number = 0xFF", content)
+        self.assertIn("class TextureTransformAdapter", content)
+        self.assertIn("getLodKey", content)
+
 if __name__ == '__main__':
     unittest.main()

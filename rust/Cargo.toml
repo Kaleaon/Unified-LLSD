@@ -1,0 +1,8 @@
+[package]
+name = "unified-llsd"
+version = "1.0.0"
+edition = "2021"
+authors = ["Kaleaon"]
+description = "Zero-dependency idiomatic native Rust LLSD SDK library"
+
+[dependencies]

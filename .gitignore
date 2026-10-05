@@ -6,3 +6,21 @@ bin/
 obj/
 *.user
 *.suo
+/.kotlin/
+node_modules/
+dist/
+# Build artifacts
+build/
+bin/
+obj/
+dist/
+node_modules/
+target/
+.gradle/
+.idea/
+*.exe
+*.dll
+*.o
+*.a
+*.so
+*.dylib
