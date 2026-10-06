@@ -5,7 +5,7 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-ROOT_DIR="/app/Unified-LLSD"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
@@ -17,8 +17,8 @@ echo "✓ C++ Native SDK passed!"
 
 echo ""
 echo "[2/7] Testing Kotlin Native SDK..."
-cd "$ROOT_DIR/kotlin"
-gradle test -q
+cd "$ROOT_DIR"
+./gradlew test -q
 echo "✓ Kotlin Native SDK passed!"
 
 echo ""
