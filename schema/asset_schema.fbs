@@ -72,6 +72,9 @@ table MeshBlock {
   normals: [Vector3];
   tex_coords: [Vector2];
   joint_influences: [JointInfluence];
+  positions_flat: [float];
+  normals_flat: [float];
+  tex_coords_flat: [float];
 }
 
 table AssetMetadata {
