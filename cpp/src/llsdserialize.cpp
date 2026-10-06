@@ -4,12 +4,38 @@
 #include <cstring>
 #include <algorithm>
 #include <cmath>
+#include <array>
+#include <cctype>
 
 namespace llsd {
 
 const std::string LLSDSerialize::BINARY_HEADER = "<? llsd/binary ?>\n";
 const std::string LLSDSerialize::NOTATION_HEADER = "<? llsd/notation ?>\n";
 const std::string LLSDSerialize::XML_HEADER = "<?xml version=\"1.0\" ?>\n";
+
+// --- Lookup table helpers ---
+constexpr auto create_b64_index() {
+    std::array<uint8_t, 256> table{};
+    for (size_t i = 0; i < 256; ++i) table[i] = 0xFF;
+    for (int i = 'A'; i <= 'Z'; ++i) table[i] = static_cast<uint8_t>(i - 'A');
+    for (int i = 'a'; i <= 'z'; ++i) table[i] = static_cast<uint8_t>(i - 'a' + 26);
+    for (int i = '0'; i <= '9'; ++i) table[i] = static_cast<uint8_t>(i - '0' + 52);
+    table['+'] = 62;
+    table['/'] = 63;
+    return table;
+}
+
+constexpr auto create_hex_index() {
+    std::array<uint8_t, 256> table{};
+    for (size_t i = 0; i < 256; ++i) table[i] = 0xFF;
+    for (int i = '0'; i <= '9'; ++i) table[i] = static_cast<uint8_t>(i - '0');
+    for (int i = 'a'; i <= 'f'; ++i) table[i] = static_cast<uint8_t>(i - 'a' + 10);
+    for (int i = 'A'; i <= 'F'; ++i) table[i] = static_cast<uint8_t>(i - 'A' + 10);
+    return table;
+}
+
+static constexpr auto b64_index = create_b64_index();
+static constexpr auto hex_index = create_hex_index();
 
 // --- Base64 helpers ---
 static const std::string b64_chars =
@@ -48,13 +74,14 @@ static std::vector<uint8_t> base64_decode(const std::string& encoded_string) {
     int i = 0, j = 0, in_ = 0;
     uint8_t char_array_4[4], char_array_3[3];
     std::vector<uint8_t> ret;
+    ret.reserve((encoded_string.size() * 3) / 4);
 
     while (in_len-- && (encoded_string[in_] != '=') &&
-           (isalnum(encoded_string[in_]) || (encoded_string[in_] == '+') || (encoded_string[in_] == '/'))) {
+           (b64_index[static_cast<uint8_t>(encoded_string[in_])] != 0xFF)) {
         char_array_4[i++] = encoded_string[in_]; in_++;
         if (i == 4) {
             for (i = 0; i < 4; i++)
-                char_array_4[i] = static_cast<uint8_t>(b64_chars.find(char_array_4[i]));
+                char_array_4[i] = b64_index[static_cast<uint8_t>(char_array_4[i])];
             char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
             char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
             char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
@@ -64,7 +91,7 @@ static std::vector<uint8_t> base64_decode(const std::string& encoded_string) {
     }
     if (i) {
         for (j = 0; j < i; j++)
-            char_array_4[j] = static_cast<uint8_t>(b64_chars.find(char_array_4[j]));
+            char_array_4[j] = b64_index[static_cast<uint8_t>(char_array_4[j])];
         char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
         char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
         for (j = 0; j < i - 1; j++) ret.push_back(char_array_3[j]);
@@ -76,11 +103,32 @@ static std::vector<uint8_t> base64_decode(const std::string& encoded_string) {
 static std::vector<uint8_t> hex_decode(const std::string& str) {
     std::vector<uint8_t> bytes;
     std::string clean;
-    for (char c : str) if (!isspace(c)) clean.push_back(c);
-    for (size_t i = 0; i < clean.size(); i += 2) {
-        std::string byteString = clean.substr(i, 2);
-        char* end = nullptr;
-        bytes.push_back(static_cast<uint8_t>(std::strtoul(byteString.c_str(), &end, 16)));
+    clean.reserve(str.size());
+    for (char c : str) {
+        if (!std::isspace(static_cast<unsigned char>(c))) {
+            clean.push_back(c);
+        }
+    }
+    bytes.reserve(clean.size() / 2);
+    size_t i = 0;
+    for (; i + 1 < clean.size(); i += 2) {
+        uint8_t high = hex_index[static_cast<uint8_t>(clean[i])];
+        uint8_t low = hex_index[static_cast<uint8_t>(clean[i + 1])];
+        if (high != 0xFF && low != 0xFF) {
+            bytes.push_back(static_cast<uint8_t>((high << 4) | low));
+        } else if (high != 0xFF) {
+            bytes.push_back(high);
+        } else {
+            bytes.push_back(0);
+        }
+    }
+    if (i < clean.size()) {
+        uint8_t high = hex_index[static_cast<uint8_t>(clean[i])];
+        if (high != 0xFF) {
+            bytes.push_back(high);
+        } else {
+            bytes.push_back(0);
+        }
     }
     return bytes;
 }
