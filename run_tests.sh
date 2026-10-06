@@ -5,7 +5,8 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-ROOT_DIR="/app/Unified-LLSD"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${ROOT_DIR:-$SCRIPT_DIR}"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
@@ -23,9 +24,9 @@ echo "✓ Kotlin Native SDK passed!"
 
 echo ""
 echo "[3/7] Testing C# Native SDK..."
-cd "$ROOT_DIR/csharp"
-/usr/lib/dotnet/sdk/10.0.107/Roslyn/bincore/csc -target:exe -out:LLSDTests.exe *.cs -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Runtime.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Console.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.ReaderWriter.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Linq.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Collections.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Memory.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Security.Cryptography.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.ComponentModel.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.XmlSerializer.dll > /dev/null
-dotnet LLSDTests.exe
+cd "$ROOT_DIR"
+dotnet build csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj > /dev/null
+dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj
 echo "✓ C# Native SDK passed!"
 
 echo ""
@@ -43,6 +44,9 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+if [ ! -d "node_modules" ]; then
+    npm install > /dev/null
+fi
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 
