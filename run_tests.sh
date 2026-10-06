@@ -17,8 +17,8 @@ echo "✓ C++ Native SDK passed!"
 
 echo ""
 echo "[2/7] Testing Kotlin Native SDK..."
-cd "$ROOT_DIR/kotlin"
-gradle test -q
+cd "$ROOT_DIR"
+./gradlew test -q
 echo "✓ Kotlin Native SDK passed!"
 
 echo ""
