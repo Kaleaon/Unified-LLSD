@@ -49,18 +49,17 @@ export class MeshAssetDecoder {
     }
 
     /**
-     * Compute GPU texture transform uniform matrix / array (8-float padded for 16-byte alignment or 5-float tight).
+     * Compute GPU texture transform uniform matrix / array (8-float padded for 16-byte alignment).
      */
     public static createTextureTransform(
         scaleX: number = 1.0,
         scaleY: number = 1.0,
         rotation: number = 0.0,
         offsetX: number = 0.0,
-        offsetY: number = 0.0,
-        tight: boolean = false
+        offsetY: number = 0.0
     ): Float32Array {
         const adapter = new TextureTransformAdapter(scaleX, scaleY, rotation, offsetX, offsetY);
-        return tight ? adapter.getPackedTight() : adapter.getPacked();
+        return adapter.getPacked();
     }
 
     /**
