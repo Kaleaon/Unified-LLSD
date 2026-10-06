@@ -326,6 +326,11 @@ export interface MeshBlockAdapter {
     normals: Vector3[];
     texCoords: Vector2[];
     jointInfluences: JointInfluence[];
+    indices?: number[];
+    positionArray?: Float32Array;
+    normalArray?: Float32Array;
+    texCoordArray?: Float32Array;
+    indexArray?: Uint16Array | Uint32Array;
 }
 """
     os.makedirs("/app/Unified-LLSD/bindings/typescript", exist_ok=True)

@@ -6,3 +6,5 @@ export * from './AssetSchemaAdapter.js';
 export * from './LLSD.js';
 export * from './LLSDSerialize.js';
 export * from './MeshAssetDecoder.js';
+export * from './PBREngine.js';
+export * from './CanvasViewport.js';
