@@ -72,7 +72,7 @@ static std::string base64_encode(const uint8_t* bytes, size_t len) {
 static std::vector<uint8_t> base64_decode(const std::string& encoded_string) {
     int in_len = static_cast<int>(encoded_string.size());
     int i = 0, j = 0, in_ = 0;
-    uint8_t char_array_4[4], char_array_3[3];
+    uint8_t char_array_4[4] = {0}, char_array_3[3] = {0};
     std::vector<uint8_t> ret;
     ret.reserve((encoded_string.size() * 3) / 4);
 
