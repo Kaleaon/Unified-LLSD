@@ -72,5 +72,27 @@ namespace Linkpoint.LLSD.Tests
             var resends = circuit.GetPacketsToResend(TimeSpan.FromMilliseconds(10));
             Assert.Empty(resends);
         }
+
+        [Fact]
+        public void TestSequenceWindowEviction()
+        {
+            var circuit = new CircuitManager(circuitCode: 654321);
+
+            // Process 2500 unique sequence numbers (exceeding 2048 window limit)
+            for (uint i = 1; i <= 2500; i++)
+            {
+                bool isNew = circuit.ProcessInboundPacket(i, reliable: false);
+                Assert.True(isNew);
+            }
+
+            // Verify recent packets (within the last 2048 window: 453..2500) are treated as duplicates
+            Assert.False(circuit.ProcessInboundPacket(2500u, reliable: false));
+            Assert.False(circuit.ProcessInboundPacket(1000u, reliable: false));
+            Assert.False(circuit.ProcessInboundPacket(453u, reliable: false));
+
+            // Verify oldest packets (1..452) have been evicted and are accepted as new
+            Assert.True(circuit.ProcessInboundPacket(1u, reliable: false));
+            Assert.True(circuit.ProcessInboundPacket(452u, reliable: false));
+        }
     }
 }
