@@ -90,8 +90,11 @@ export interface GLTFMaterialAdapter {
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
+    positions: Vector3[] | Float32Array;
+    normals: Vector3[] | Float32Array;
+    texCoords: Vector2[] | Float32Array;
     jointInfluences: JointInfluence[];
+    positionsFlat?: Float32Array;
+    normalsFlat?: Float32Array;
+    texCoordsFlat?: Float32Array;
 }
