@@ -5,7 +5,7 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-ROOT_DIR="/app/Unified-LLSD"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
@@ -43,6 +43,9 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+if [ ! -d "node_modules" ]; then
+    npm install > /dev/null 2>&1
+fi
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 
