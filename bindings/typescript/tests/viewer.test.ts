@@ -27,7 +27,7 @@ test('AssetSchemaAdapter constants and LOD mapping', () => {
     assert.equal(AssetSchemaConstants.getLodKey(DetailLevel.LOWEST), 'lowest_lod');
 });
 
-test('TextureTransformAdapter Float32Array packing', () => {
+test('TextureTransformAdapter Float32Array packing and accessible labels', () => {
     const transform = new TextureTransformAdapter(2.0, 3.0, 1.5707963, 0.5, 0.25);
 
     const packed = transform.getPacked();
@@ -48,6 +48,16 @@ test('TextureTransformAdapter Float32Array packing', () => {
     assert.ok(Math.abs(tight[2] - 1.5707963) < 0.0001);
     assert.equal(tight[3], 0.5);
     assert.equal(tight[4], 0.25);
+
+    // Assert accessible label metadata and helpers
+    assert.ok(transform.getAriaLabel().length > 0);
+    assert.equal(transform.getAriaLabel(), 'Texture Transform (Scale: 2x3, Offset: 0.5,0.25, Rotation: 1.5707963)');
+    assert.equal(transform.getControlAriaLabel('Scale X'), 'Texture Transform (Scale: 2x3, Offset: 0.5,0.25, Rotation: 1.5707963) - Scale X');
+
+    const customTransform = new TextureTransformAdapter(1.0, 1.0, 0.0, 0.0, 0.0, 'Base Diffuse Transform');
+    assert.equal(customTransform.ariaLabel, 'Base Diffuse Transform');
+    assert.equal(customTransform.getAriaLabel(), 'Base Diffuse Transform');
+    assert.equal(customTransform.getControlAriaLabel('Rotation'), 'Base Diffuse Transform - Rotation');
 });
 
 test('LLSD Value Types and Conversions', () => {
@@ -106,6 +116,37 @@ test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     const result = MeshAssetDecoder.parseJointInfluences(mockBuffer);
     assert.equal(result.jointInfluences.length, 2);
     assert.equal(result.jointInfluences[0].jointIndex, 0);
+    assert.equal(result.jointInfluences[0].ariaLabel, 'Joint 0'); // Default structured fallback label
     assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
+    assert.equal(result.jointInfluences[1].ariaLabel, 'Joint 165');
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
+
+    // Parsing with explicit joint names map
+    const namedResult = MeshAssetDecoder.parseJointInfluences(mockBuffer, 0, { 0: 'mPelvis', 165: 'mAnkleLeft' });
+    assert.equal(namedResult.jointInfluences[0].jointName, 'mPelvis');
+    assert.equal(namedResult.jointInfluences[0].ariaLabel, 'mPelvis');
+    assert.equal(namedResult.jointInfluences[1].jointName, 'mAnkleLeft');
+    assert.equal(namedResult.jointInfluences[1].ariaLabel, 'mAnkleLeft');
+});
+
+test('MeshAssetDecoder Joint Accessibility Metadata & MeshBlock Adapter', () => {
+    assert.equal(MeshAssetDecoder.getJointAriaLabel(5), 'Joint 5');
+    assert.equal(MeshAssetDecoder.getJointAriaLabel(5, 'mChest'), 'mChest');
+    assert.equal(MeshAssetDecoder.getJointAriaLabel(5, '  '), 'Joint 5');
+
+    const meshBlock = MeshAssetDecoder.createMeshBlock(
+        DetailLevel.HIGH,
+        [{ x: 0, y: 0, z: 0 }],
+        [{ x: 0, y: 1, z: 0 }],
+        [{ x: 0, y: 0 }],
+        [
+            { jointIndex: 2, weight: 0.8 },
+            { jointIndex: 12, weight: 0.2, jointName: 'mHead' }
+        ]
+    );
+
+    assert.equal(meshBlock.jointInfluences.length, 2);
+    assert.equal(meshBlock.jointInfluences[0].ariaLabel, 'Joint 2');
+    assert.equal(meshBlock.jointInfluences[1].jointName, 'mHead');
+    assert.equal(meshBlock.jointInfluences[1].ariaLabel, 'mHead');
 });

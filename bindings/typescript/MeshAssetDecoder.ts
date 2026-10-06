@@ -16,10 +16,59 @@ import {
 
 export class MeshAssetDecoder {
     /**
+     * Generate structured ARIA label for a joint index and optional human-readable joint name.
+     */
+    public static getJointAriaLabel(jointIndex: number, jointName?: string): string {
+        if (jointName && jointName.trim().length > 0) {
+            return jointName;
+        }
+        return `Joint ${jointIndex}`;
+    }
+
+    /**
+     * Create a JointInfluence structure with programmatic ARIA label metadata.
+     */
+    public static createJointInfluence(
+        jointIndex: number,
+        weight: number,
+        jointName?: string,
+        ariaLabel?: string
+    ): JointInfluence {
+        const resolvedLabel = ariaLabel || MeshAssetDecoder.getJointAriaLabel(jointIndex, jointName);
+        const influence: JointInfluence = {
+            jointIndex,
+            weight,
+            ariaLabel: resolvedLabel
+        };
+        if (jointName !== undefined) {
+            influence.jointName = jointName;
+        }
+        return influence;
+    }
+
+    /**
+     * Annotate joint influences array with joint names and accessible ARIA labels.
+     */
+    public static decorateJointInfluences(
+        influences: JointInfluence[],
+        jointNames?: Record<number, string> | string[]
+    ): JointInfluence[] {
+        return influences.map(inf => {
+            const name = inf.jointName ?? (jointNames ? (Array.isArray(jointNames) ? jointNames[inf.jointIndex] : jointNames[inf.jointIndex]) : undefined);
+            return MeshAssetDecoder.createJointInfluence(inf.jointIndex, inf.weight, name, inf.ariaLabel);
+        });
+    }
+
+    /**
      * Decode rigged mesh joint influences from binary data.
      * Supports extended skeletons with up to 256 joints (0..255) and 0xFF sentinel byte.
+     * Annotates parsed joint influences with human-readable names and ARIA labels.
      */
-    public static parseJointInfluences(buffer: Uint8Array, offset: number = 0): { jointInfluences: JointInfluence[]; bytesRead: number } {
+    public static parseJointInfluences(
+        buffer: Uint8Array,
+        offset: number = 0,
+        jointNames?: Record<number, string> | string[]
+    ): { jointInfluences: JointInfluence[]; bytesRead: number } {
         const influences: JointInfluence[] = [];
         let cur = offset;
         const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
@@ -36,10 +85,10 @@ export class MeshAssetDecoder {
             const uint16Weight = (b1 << 8) | b0;
             const weight = uint16Weight / 65535.0;
 
-            influences.push({
-                jointIndex: jointIdx,
-                weight: weight
-            });
+            const name = jointNames ? (Array.isArray(jointNames) ? jointNames[jointIdx] : jointNames[jointIdx]) : undefined;
+            const influence = MeshAssetDecoder.createJointInfluence(jointIdx, weight, name);
+
+            influences.push(influence);
         }
 
         return {
@@ -57,9 +106,10 @@ export class MeshAssetDecoder {
         rotation: number = 0.0,
         offsetX: number = 0.0,
         offsetY: number = 0.0,
-        tight: boolean = false
+        tight: boolean = false,
+        ariaLabel?: string
     ): Float32Array {
-        const adapter = new TextureTransformAdapter(scaleX, scaleY, rotation, offsetX, offsetY);
+        const adapter = new TextureTransformAdapter(scaleX, scaleY, rotation, offsetX, offsetY, ariaLabel);
         return tight ? adapter.getPackedTight() : adapter.getPacked();
     }
 
@@ -88,22 +138,24 @@ export class MeshAssetDecoder {
     }
 
     /**
-     * Create mesh block adapter structure.
+     * Create mesh block adapter structure with decorated joint influences.
      */
     public static createMeshBlock(
         lod: DetailLevel,
         positions: Vector3[],
         normals: Vector3[],
         texCoords: Vector2[],
-        jointInfluences: JointInfluence[]
+        jointInfluences: JointInfluence[],
+        jointNames?: Record<number, string> | string[]
     ): MeshBlockAdapter {
+        const decoratedInfluences = MeshAssetDecoder.decorateJointInfluences(jointInfluences, jointNames);
         return {
             lod,
             lodKey: MeshAssetDecoder.getLodKey(lod),
             positions,
             normals,
             texCoords,
-            jointInfluences
+            jointInfluences: decoratedInfluences
         };
     }
 }

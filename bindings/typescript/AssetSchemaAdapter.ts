@@ -40,13 +40,38 @@ export class TextureTransformAdapter {
     public rotation: number = 0.0;
     public offsetX: number = 0.0;
     public offsetY: number = 0.0;
+    public ariaLabel?: string;
 
-    constructor(scaleX: number = 1.0, scaleY: number = 1.0, rotation: number = 0.0, offsetX: number = 0.0, offsetY: number = 0.0) {
+    constructor(
+        scaleX: number = 1.0,
+        scaleY: number = 1.0,
+        rotation: number = 0.0,
+        offsetX: number = 0.0,
+        offsetY: number = 0.0,
+        ariaLabel?: string
+    ) {
         this.scaleX = scaleX;
         this.scaleY = scaleY;
         this.rotation = rotation;
         this.offsetX = offsetX;
         this.offsetY = offsetY;
+        this.ariaLabel = ariaLabel;
+    }
+
+    public getDefaultAriaLabel(): string {
+        return `Texture Transform (Scale: ${this.scaleX}x${this.scaleY}, Offset: ${this.offsetX},${this.offsetY}, Rotation: ${this.rotation})`;
+    }
+
+    public getAriaLabel(): string {
+        if (this.ariaLabel && this.ariaLabel.trim().length > 0) {
+            return this.ariaLabel;
+        }
+        return this.getDefaultAriaLabel();
+    }
+
+    public getControlAriaLabel(property: string): string {
+        const base = this.getAriaLabel();
+        return `${base} - ${property}`;
     }
 
     public getPacked(): Float32Array {
@@ -78,6 +103,8 @@ export interface Vector3 {
 export interface JointInfluence {
     jointIndex: number;
     weight: number;
+    jointName?: string;
+    ariaLabel?: string;
 }
 
 export interface GLTFMaterialAdapter {
