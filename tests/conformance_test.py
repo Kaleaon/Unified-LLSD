@@ -6,12 +6,11 @@ and joint limit/sentinel parity across C++, Kotlin, C#, and Java targets.
 """
 
 import os
-import sys
 import struct
 import unittest
 
-class TestAssetSchemaConformance(unittest.TestCase):
 
+class TestAssetSchemaConformance(unittest.TestCase):
     def test_texture_transform_packed_layout(self):
         """Verify standard (8-float) and tight (5-float) texture transform packing layout."""
         scale_x, scale_y = 2.0, 3.0
@@ -22,17 +21,21 @@ class TestAssetSchemaConformance(unittest.TestCase):
         expected_packed_tight = [2.0, 3.0, 1.5707963, 0.5, 0.25]
 
         # Verify binary packing representation (IEEE 754 float little endian)
-        packed_bytes = struct.pack('<8f', *expected_packed)
-        unpacked_floats = list(struct.unpack('<8f', packed_bytes))
+        packed_bytes = struct.pack("<8f", *expected_packed)
+        unpacked_floats = list(struct.unpack("<8f", packed_bytes))
 
         for idx, (exp, act) in enumerate(zip(expected_packed, unpacked_floats)):
-            self.assertAlmostEqual(exp, act, places=5, msg=f"Mismatch at packed float index {idx}")
+            self.assertAlmostEqual(
+                exp, act, places=5, msg=f"Mismatch at packed float index {idx}"
+            )
 
-        tight_bytes = struct.pack('<5f', *expected_packed_tight)
-        unpacked_tight = list(struct.unpack('<5f', tight_bytes))
+        tight_bytes = struct.pack("<5f", *expected_packed_tight)
+        unpacked_tight = list(struct.unpack("<5f", tight_bytes))
 
         for idx, (exp, act) in enumerate(zip(expected_packed_tight, unpacked_tight)):
-            self.assertAlmostEqual(exp, act, places=5, msg=f"Mismatch at tight float index {idx}")
+            self.assertAlmostEqual(
+                exp, act, places=5, msg=f"Mismatch at tight float index {idx}"
+            )
 
         # Indices 0..1 must be scale, 2 must be rotation, 4..5 must be offset in packed layout
         self.assertEqual(expected_packed[0], scale_x)
@@ -54,7 +57,9 @@ class TestAssetSchemaConformance(unittest.TestCase):
             "LOWEST": "lowest_lod",
         }
 
-        self.assertEqual(lod_mappings["HIGH"], "high_lod", "DetailLevel.High MUST map to high_lod")
+        self.assertEqual(
+            lod_mappings["HIGH"], "high_lod", "DetailLevel.High MUST map to high_lod"
+        )
         self.assertEqual(lod_mappings["HIGHEST"], "high_lod")
         self.assertEqual(lod_mappings["MEDIUM"], "medium_lod")
         self.assertEqual(lod_mappings["LOW"], "low_lod")
@@ -64,15 +69,23 @@ class TestAssetSchemaConformance(unittest.TestCase):
         MAX_RIGGED_MESH_JOINTS = 256
         JOINT_SENTINEL = 0xFF
 
-        self.assertEqual(MAX_RIGGED_MESH_JOINTS, 256, "Max rigged mesh joints capacity must be 256")
+        self.assertEqual(
+            MAX_RIGGED_MESH_JOINTS, 256, "Max rigged mesh joints capacity must be 256"
+        )
         self.assertEqual(JOINT_SENTINEL, 255, "Joint sentinel byte must be 0xFF (255)")
 
         # Test joint sentinel parsing logic simulation for extended skeletons (e.g. >163 joints)
-        mock_joint_influence_data = bytearray([
-            0, 0, 128,   # joint 0, weight ~0.5
-            165, 0, 255, # joint 165 (extended skeleton joint > 163), weight ~1.0
-            0xFF         # sentinel end of list
-        ])
+        mock_joint_influence_data = bytearray(
+            [
+                0,
+                0,
+                128,  # joint 0, weight ~0.5
+                165,
+                0,
+                255,  # joint 165 (extended skeleton joint > 163), weight ~1.0
+                0xFF,  # sentinel end of list
+            ]
+        )
 
         parsed_joints = []
         i = 0
@@ -90,12 +103,22 @@ class TestAssetSchemaConformance(unittest.TestCase):
 
         self.assertEqual(len(parsed_joints), 2)
         self.assertEqual(parsed_joints[0][0], 0)
-        self.assertEqual(parsed_joints[1][0], 165)  # Successfully parses joint 165 > 163!
+        self.assertEqual(
+            parsed_joints[1][0], 165
+        )  # Successfully parses joint 165 > 163!
 
     def test_typescript_bindings_exist(self):
         """Verify generated TypeScript bindings file and key schema constants."""
-        ts_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "typescript", "AssetSchemaAdapter.ts")
-        self.assertTrue(os.path.exists(ts_binding_path), "TypeScript bindings file must exist")
+        ts_binding_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "bindings",
+            "typescript",
+            "AssetSchemaAdapter.ts",
+        )
+        self.assertTrue(
+            os.path.exists(ts_binding_path), "TypeScript bindings file must exist"
+        )
 
         with open(ts_binding_path, "r") as f:
             content = f.read()
@@ -105,5 +128,6 @@ class TestAssetSchemaConformance(unittest.TestCase):
         self.assertIn("class TextureTransformAdapter", content)
         self.assertIn("getLodKey", content)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

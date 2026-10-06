@@ -1,8 +1,8 @@
 #include "llsd/lluuid.h"
-#include <iomanip>
-#include <sstream>
 #include <algorithm>
+#include <iomanip>
 #include <random>
+#include <sstream>
 
 namespace llsd {
 
@@ -12,26 +12,29 @@ LLUUID::LLUUID() {
     mData.fill(0);
 }
 
-LLUUID::LLUUID(const std::array<uint8_t, 16>& bytes) : mData(bytes) {}
+LLUUID::LLUUID(const std::array<uint8_t, 16> &bytes) : mData(bytes) {}
 
-LLUUID::LLUUID(const std::string& str) {
+LLUUID::LLUUID(const std::string &str) {
     mData.fill(0);
     std::string clean;
     for (char c : str) {
-        if (c != '-' && c != '{' && c != '}') clean.push_back(c);
+        if (c != '-' && c != '{' && c != '}')
+            clean.push_back(c);
     }
-    if (clean.size() != 32) return;
+    if (clean.size() != 32)
+        return;
 
     for (size_t i = 0; i < 16; ++i) {
         std::string byteString = clean.substr(i * 2, 2);
-        char* end = nullptr;
+        char *end = nullptr;
         mData[i] = static_cast<uint8_t>(std::strtoul(byteString.c_str(), &end, 16));
     }
 }
 
 bool LLUUID::isNull() const {
     for (uint8_t b : mData) {
-        if (b != 0) return false;
+        if (b != 0)
+            return false;
     }
     return true;
 }
@@ -40,7 +43,8 @@ std::string LLUUID::toString() const {
     std::ostringstream ss;
     ss << std::hex << std::setfill('0');
     for (size_t i = 0; i < 16; ++i) {
-        if (i == 4 || i == 6 || i == 8 || i == 10) ss << '-';
+        if (i == 4 || i == 6 || i == 8 || i == 10)
+            ss << '-';
         ss << std::setw(2) << static_cast<int>(mData[i]);
     }
     return ss.str();

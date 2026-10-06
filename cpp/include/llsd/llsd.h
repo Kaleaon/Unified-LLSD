@@ -1,15 +1,15 @@
 #ifndef UNIFIED_LLSD_LLSD_H
 #define UNIFIED_LLSD_LLSD_H
 
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include <cstdint>
-#include <iostream>
-#include "lluuid.h"
 #include "lldate.h"
 #include "lluri.h"
+#include "lluuid.h"
+#include <cstdint>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace llsd {
 
@@ -62,14 +62,14 @@ public:
     LLSD(uint32_t v) : mType(TypeInteger), mIntegerVal(static_cast<int64_t>(v)) {}
     LLSD(uint64_t v) : mType(TypeInteger), mIntegerVal(static_cast<int64_t>(v)) {}
     LLSD(Real v) : mType(TypeReal), mRealVal(v) {}
-    LLSD(const String& v) : mType(TypeString), mStringVal(v) {}
-    LLSD(const char* v) : mType(TypeString), mStringVal(v ? v : "") {}
-    LLSD(const UUID& v) : mType(TypeUUID), mUUIDVal(v) {}
-    LLSD(const Date& v) : mType(TypeDate), mDateVal(v) {}
-    LLSD(const URI& v) : mType(TypeURI), mURIVal(v) {}
-    LLSD(const Binary& v) : mType(TypeBinary), mBinaryVal(v) {}
-    LLSD(const Map& v) : mType(TypeMap), mMapVal(v) {}
-    LLSD(const Array& v) : mType(TypeArray), mArrayVal(v) {}
+    LLSD(const String &v) : mType(TypeString), mStringVal(v) {}
+    LLSD(const char *v) : mType(TypeString), mStringVal(v ? v : "") {}
+    LLSD(const UUID &v) : mType(TypeUUID), mUUIDVal(v) {}
+    LLSD(const Date &v) : mType(TypeDate), mDateVal(v) {}
+    LLSD(const URI &v) : mType(TypeURI), mURIVal(v) {}
+    LLSD(const Binary &v) : mType(TypeBinary), mBinaryVal(v) {}
+    LLSD(const Map &v) : mType(TypeMap), mMapVal(v) {}
+    LLSD(const Array &v) : mType(TypeArray), mArrayVal(v) {}
 
     Type type() const { return mType; }
     bool isUndefined() const { return mType == TypeUndefined; }
@@ -98,23 +98,31 @@ public:
     Binary asBinary() const;
 
     size_t size() const;
-    bool has(const std::string& key) const;
+    bool has(const std::string &key) const;
 
-    LLSD& operator[](const std::string& key);
-    const LLSD& operator[](const std::string& key) const;
-    LLSD& operator[](size_t index);
-    const LLSD& operator[](size_t index) const;
+    LLSD &operator[](const std::string &key);
+    const LLSD &operator[](const std::string &key) const;
+    LLSD &operator[](size_t index);
+    const LLSD &operator[](size_t index) const;
 
     Map::const_iterator beginMap() const { return mMapVal.begin(); }
     Map::const_iterator endMap() const { return mMapVal.end(); }
     Array::const_iterator beginArray() const { return mArrayVal.begin(); }
     Array::const_iterator endArray() const { return mArrayVal.end(); }
 
-    static LLSD emptyMap() { LLSD res; res.mType = TypeMap; return res; }
-    static LLSD emptyArray() { LLSD res; res.mType = TypeArray; return res; }
+    static LLSD emptyMap() {
+        LLSD res;
+        res.mType = TypeMap;
+        return res;
+    }
+    static LLSD emptyArray() {
+        LLSD res;
+        res.mType = TypeArray;
+        return res;
+    }
 
-    bool operator==(const LLSD& rhs) const;
-    bool operator!=(const LLSD& rhs) const { return !(*this == rhs); }
+    bool operator==(const LLSD &rhs) const;
+    bool operator!=(const LLSD &rhs) const { return !(*this == rhs); }
 };
 
 } // namespace llsd

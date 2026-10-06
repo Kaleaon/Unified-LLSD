@@ -3,7 +3,6 @@ package com.firestorm.llcommon
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -14,16 +13,16 @@ import kotlin.test.assertTrue
  *  - Libremetaverse / OpenMetaverse OSD
  */
 class LLSDSerializeXmlTest {
-
     @Test fun roundTripScalarsAndContainers() {
-        val sd = LLSD.map(
-            "i" to LLSD.integer(42),
-            "r" to LLSD.real(3.5),
-            "b" to LLSD.bool(true),
-            "s" to LLSD.string("hello"),
-            "u" to LLSD.uuid(LLUUID.NULL),
-            "arr" to LLSD.array(LLSD.integer(1), LLSD.integer(2), LLSD.integer(3)),
-        )
+        val sd =
+            LLSD.map(
+                "i" to LLSD.integer(42),
+                "r" to LLSD.real(3.5),
+                "b" to LLSD.bool(true),
+                "s" to LLSD.string("hello"),
+                "u" to LLSD.uuid(LLUUID.NULL),
+                "arr" to LLSD.array(LLSD.integer(1), LLSD.integer(2), LLSD.integer(3)),
+            )
         val xml = LLSDSerialize.toXML(sd)
         val back = LLSDSerialize.fromXML(xml)
         assertEquals(sd["i"].asInt(), back["i"].asInt())
@@ -103,7 +102,6 @@ class LLSDSerializeXmlTest {
 }
 
 class LLSDSerializeNotationTest {
-
     @Test fun uuidIsBareNotQuoted() {
         val id = LLUUID.fromString("3c115e51-04f4-523c-9fa6-98aff1034730")!!
         val notation = LLSDSerialize.toNotation(LLSD.uuid(id))
@@ -150,11 +148,12 @@ class LLSDSerializeNotationTest {
     }
 
     @Test fun mapAndArrayRoundTrip() {
-        val sd = LLSD.map(
-            "name" to LLSD.string("alice"),
-            "age" to LLSD.integer(30),
-            "tags" to LLSD.array(LLSD.string("a"), LLSD.string("b")),
-        )
+        val sd =
+            LLSD.map(
+                "name" to LLSD.string("alice"),
+                "age" to LLSD.integer(30),
+                "tags" to LLSD.array(LLSD.string("a"), LLSD.string("b")),
+            )
         val notation = LLSDSerialize.toNotation(sd)
         val back = LLSDSerialize.fromNotation(notation)
         assertEquals("alice", back["name"].asString())
@@ -185,7 +184,6 @@ class LLSDSerializeNotationTest {
 }
 
 class LLSDSerializeBinaryTest {
-
     @Test fun booleanWritesSingleByte() {
         assertTrue(byteArrayOf('1'.code.toByte()).contentEquals(LLSDSerialize.toBinary(LLSD.bool(true))))
         assertTrue(byteArrayOf('0'.code.toByte()).contentEquals(LLSDSerialize.toBinary(LLSD.bool(false))))
@@ -249,11 +247,14 @@ class LLSDSerializeBinaryTest {
     }
 
     @Test fun mapPreservesInsertionOrderInNonCanonical() {
-        val sd = LLSD.LLSDMap(linkedMapOf(
-            "z" to LLSD.integer(1),
-            "a" to LLSD.integer(2),
-            "m" to LLSD.integer(3),
-        ))
+        val sd =
+            LLSD.LLSDMap(
+                linkedMapOf(
+                    "z" to LLSD.integer(1),
+                    "a" to LLSD.integer(2),
+                    "m" to LLSD.integer(3),
+                ),
+            )
         val out = LLSDSerialize.toBinary(sd)
         val back = LLSDSerialize.fromBinary(out)
         assertTrue(back is LLSD.LLSDMap)
@@ -261,10 +262,13 @@ class LLSDSerializeBinaryTest {
     }
 
     @Test fun canonicalBinarySortsKeys() {
-        val sd = LLSD.LLSDMap(linkedMapOf(
-            "z" to LLSD.integer(1),
-            "a" to LLSD.integer(2),
-        ))
+        val sd =
+            LLSD.LLSDMap(
+                linkedMapOf(
+                    "z" to LLSD.integer(1),
+                    "a" to LLSD.integer(2),
+                ),
+            )
         val canonical = LLSDSerialize.toCanonicalBinary(sd)
         val back = LLSDSerialize.fromBinary(canonical)
         assertTrue(back is LLSD.LLSDMap)
@@ -287,14 +291,14 @@ class LLSDSerializeBinaryTest {
     }
 
     @Test fun toleratesBinaryHeaderCookie() {
-        val out = LLSDSerialize.BINARY_HEADER.toByteArray(Charsets.US_ASCII) +
+        val out =
+            LLSDSerialize.BINARY_HEADER.toByteArray(Charsets.US_ASCII) +
                 LLSDSerialize.toBinary(LLSD.integer(7))
         assertEquals(7, LLSDSerialize.fromBinary(out).asInt())
     }
 }
 
 class LLSDSerializeAutoDetectTest {
-
     @Test fun detectsXmlByDeclaration() {
         val data = ("<?xml version=\"1.0\"?><llsd><integer>1</integer></llsd>").toByteArray()
         assertEquals(LLSDSerialize.Format.XML, LLSDSerialize.detectFormat(data))
@@ -302,7 +306,8 @@ class LLSDSerializeAutoDetectTest {
     }
 
     @Test fun detectsBinaryByCookie() {
-        val data = LLSDSerialize.BINARY_HEADER.toByteArray() +
+        val data =
+            LLSDSerialize.BINARY_HEADER.toByteArray() +
                 LLSDSerialize.toBinary(LLSD.string("hi"))
         assertEquals(LLSDSerialize.Format.BINARY, LLSDSerialize.detectFormat(data))
         assertEquals("hi", LLSDSerialize.parse(data).asString())
@@ -321,13 +326,13 @@ class LLSDSerializeAutoDetectTest {
 }
 
 class LLSDSerializeJsonTest {
-
     @Test fun roundTrip() {
-        val sd = LLSD.map(
-            "n" to LLSD.integer(42),
-            "s" to LLSD.string("alice\n\"bob\""),
-            "a" to LLSD.array(LLSD.bool(true), LLSD.real(1.5)),
-        )
+        val sd =
+            LLSD.map(
+                "n" to LLSD.integer(42),
+                "s" to LLSD.string("alice\n\"bob\""),
+                "a" to LLSD.array(LLSD.bool(true), LLSD.real(1.5)),
+            )
         val json = LLSDSerialize.toJSON(sd)
         val back = LLSDSerialize.fromJSON(json)
         assertEquals(42, back["n"].asInt())

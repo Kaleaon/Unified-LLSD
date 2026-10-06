@@ -4,7 +4,6 @@ import java.security.MessageDigest
 import java.util.UUID
 
 data class LLUUID(val uuid: UUID) : Comparable<LLUUID> {
-
     constructor() : this(UUID(0L, 0L))
 
     constructor(s: String) : this(UUID.fromString(s))
@@ -39,8 +38,11 @@ data class LLUUID(val uuid: UUID) : Comparable<LLUUID> {
         val msb = uuid.mostSignificantBits
         val lsb = uuid.leastSignificantBits
         return ByteArray(16) { i ->
-            if (i < 8) ((msb ushr ((7 - i) * 8)) and 0xffL).toByte()
-            else ((lsb ushr ((15 - i) * 8)) and 0xffL).toByte()
+            if (i < 8) {
+                ((msb ushr ((7 - i) * 8)) and 0xffL).toByte()
+            } else {
+                ((lsb ushr ((15 - i) * 8)) and 0xffL).toByte()
+            }
         }
     }
 
@@ -51,7 +53,10 @@ data class LLUUID(val uuid: UUID) : Comparable<LLUUID> {
 
         fun fromString(s: String): LLUUID? = runCatching { LLUUID(UUID.fromString(s)) }.getOrNull()
 
-        fun combine(id1: LLUUID, id2: LLUUID): LLUUID = id1.combine(id2)
+        fun combine(
+            id1: LLUUID,
+            id2: LLUUID,
+        ): LLUUID = id1.combine(id2)
 
         fun fromBytes(bytes: ByteArray): LLUUID? {
             if (bytes.size < 16) return null

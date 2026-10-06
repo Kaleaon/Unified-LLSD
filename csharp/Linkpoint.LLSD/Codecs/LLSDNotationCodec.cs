@@ -177,10 +177,12 @@ namespace Linkpoint.LLSD.Codecs
                         Consume();
                         return LLSDValue.Undefined;
 
-                    case 'T': case 't':
+                    case 'T':
+                    case 't':
                         return ParseBoolWord(true);
 
-                    case 'F': case 'f':
+                    case 'F':
+                    case 'f':
                         return ParseBoolWord(false);
 
                     case '1':

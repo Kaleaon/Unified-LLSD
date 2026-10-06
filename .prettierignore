@@ -1,0 +1,5 @@
+dist/
+build/
+.dart_tool/
+node_modules/
+*.lock

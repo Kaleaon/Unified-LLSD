@@ -1,9 +1,9 @@
 #ifndef UNIFIED_LLSD_LLDATE_H
 #define UNIFIED_LLSD_LLDATE_H
 
-#include <string>
 #include <cstdint>
 #include <ostream>
+#include <string>
 
 namespace llsd {
 
@@ -13,7 +13,7 @@ public:
 
     LLDate();
     explicit LLDate(double seconds);
-    explicit LLDate(const std::string& isoStr);
+    explicit LLDate(const std::string &isoStr);
 
     static const LLDate null;
 
@@ -22,12 +22,16 @@ public:
     double secondsSinceEpoch() const { return mSecondsSinceEpoch; }
     std::string toISOString() const;
 
-    bool operator==(const LLDate& rhs) const { return mSecondsSinceEpoch == rhs.mSecondsSinceEpoch; }
-    bool operator!=(const LLDate& rhs) const { return mSecondsSinceEpoch != rhs.mSecondsSinceEpoch; }
-    bool operator<(const LLDate& rhs) const { return mSecondsSinceEpoch < rhs.mSecondsSinceEpoch; }
+    bool operator==(const LLDate &rhs) const {
+        return mSecondsSinceEpoch == rhs.mSecondsSinceEpoch;
+    }
+    bool operator!=(const LLDate &rhs) const {
+        return mSecondsSinceEpoch != rhs.mSecondsSinceEpoch;
+    }
+    bool operator<(const LLDate &rhs) const { return mSecondsSinceEpoch < rhs.mSecondsSinceEpoch; }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const LLDate& date) {
+inline std::ostream &operator<<(std::ostream &os, const LLDate &date) {
     return os << date.toISOString();
 }
 

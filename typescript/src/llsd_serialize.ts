@@ -1,51 +1,63 @@
-import { LLSD, LLSDType } from './llsd.js';
-import { LLUUID } from './lluuid.js';
-import { LLDate } from './lldate.js';
-import { LLURI } from './lluri.js';
+import { LLSD, LLSDType } from "./llsd.js";
+import { LLDate } from "./lldate.js";
 
 export class LLSDSerialize {
   public static readonly binaryHeader = "<? llsd/binary ?>\n";
   public static readonly notationHeader = "<? llsd/notation ?>\n";
-  public static readonly xmlHeader = "<?xml version=\"1.0\" ?>\n";
+  public static readonly xmlHeader = '<?xml version="1.0" ?>\n';
 
   // --- XML ---
   public static toXML(sd: LLSD, withDeclaration = false): string {
-    let xml = withDeclaration ? this.xmlHeader : '';
-    xml += '<llsd>';
+    let xml = withDeclaration ? this.xmlHeader : "";
+    xml += "<llsd>";
     xml += this.writeXmlElement(sd);
-    xml += '</llsd>';
+    xml += "</llsd>";
     return xml;
   }
 
   private static writeXmlElement(sd: LLSD): string {
     switch (sd.type) {
-      case LLSDType.Undefined: return '<undef/>';
-      case LLSDType.Boolean: return `<boolean>${sd.asBoolean() ? 'true' : 'false'}</boolean>`;
-      case LLSDType.Integer: return `<integer>${sd.asBigInt()}</integer>`;
-      case LLSDType.Real:
+      case LLSDType.Undefined:
+        return "<undef/>";
+      case LLSDType.Boolean:
+        return `<boolean>${sd.asBoolean() ? "true" : "false"}</boolean>`;
+      case LLSDType.Integer:
+        return `<integer>${sd.asBigInt()}</integer>`;
+      case LLSDType.Real: {
         const r = sd.asReal();
-        if (isNaN(r)) return '<real>nan</real>';
-        if (!isFinite(r)) return `<real>${r > 0 ? 'inf' : '-inf'}</real>`;
+        if (isNaN(r)) return "<real>nan</real>";
+        if (!isFinite(r)) return `<real>${r > 0 ? "inf" : "-inf"}</real>`;
         return `<real>${r}</real>`;
-      case LLSDType.String:
+      }
+      case LLSDType.String: {
         const s = sd.asString();
-        return s ? `<string>${this.xmlEscape(s)}</string>` : '<string/>';
-      case LLSDType.UUID:
+        return s ? `<string>${this.xmlEscape(s)}</string>` : "<string/>";
+      }
+      case LLSDType.UUID: {
         const u = sd.asUUID();
-        return u.isNull ? '<uuid/>' : `<uuid>${u.toString()}</uuid>`;
-      case LLSDType.Date: return `<date>${sd.asDate().toISOString()}</date>`;
-      case LLSDType.URI: return `<uri>${this.xmlEscape(sd.asURI().asString())}</uri>`;
+        return u.isNull ? "<uuid/>" : `<uuid>${u.toString()}</uuid>`;
+      }
+      case LLSDType.Date:
+        return `<date>${sd.asDate().toISOString()}</date>`;
+      case LLSDType.URI:
+        return `<uri>${this.xmlEscape(sd.asURI().asString())}</uri>`;
       case LLSDType.Binary:
-        return `<binary encoding="base64">${Buffer.from(sd.asBinary()).toString('base64')}</binary>`;
+        return `<binary encoding="base64">${Buffer.from(sd.asBinary()).toString(
+          "base64",
+        )}</binary>`;
       case LLSDType.Map:
-        return '<map></map>';
+        return "<map></map>";
       case LLSDType.Array:
-        return '<array></array>';
+        return "<array></array>";
     }
   }
 
   private static xmlEscape(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   public static fromXML(xml: string): LLSD {
@@ -56,7 +68,8 @@ export class LLSDSerialize {
     const strMatch = clean.match(/<string>(.*?)<\/string>/);
     if (strMatch) return new LLSD(strMatch[1]);
     const boolMatch = clean.match(/<boolean>(.*?)<\/boolean>/);
-    if (boolMatch) return new LLSD(boolMatch[1] === 'true' || boolMatch[1] === '1');
+    if (boolMatch)
+      return new LLSD(boolMatch[1] === "true" || boolMatch[1] === "1");
     return LLSD.undefined;
   }
 
@@ -77,8 +90,12 @@ export class LLSDSerialize {
 
   private static writeBinary(chunks: Uint8Array[], sd: LLSD): void {
     switch (sd.type) {
-      case LLSDType.Undefined: chunks.push(new Uint8Array([33])); break; // '!'
-      case LLSDType.Boolean: chunks.push(new Uint8Array([sd.asBoolean() ? 49 : 48])); break; // '1' or '0'
+      case LLSDType.Undefined:
+        chunks.push(new Uint8Array([33]));
+        break; // '!'
+      case LLSDType.Boolean:
+        chunks.push(new Uint8Array([sd.asBoolean() ? 49 : 48]));
+        break; // '1' or '0'
       case LLSDType.Integer: {
         const buf = new Uint8Array(5);
         buf[0] = 105; // 'i'
@@ -103,7 +120,9 @@ export class LLSDSerialize {
         chunks.push(buf);
         break;
       }
-      default: chunks.push(new Uint8Array([33])); break;
+      default:
+        chunks.push(new Uint8Array([33]));
+        break;
     }
   }
 
@@ -123,21 +142,28 @@ export class LLSDSerialize {
   // --- Notation ---
   public static toNotation(sd: LLSD): string {
     switch (sd.type) {
-      case LLSDType.Undefined: return '!';
-      case LLSDType.Boolean: return sd.asBoolean() ? 'true' : 'false';
-      case LLSDType.Integer: return `i${sd.asBigInt()}`;
-      case LLSDType.Real: return `r${sd.asReal()}`;
-      case LLSDType.String: return `'${sd.asString()}'`;
-      default: return '!';
+      case LLSDType.Undefined:
+        return "!";
+      case LLSDType.Boolean:
+        return sd.asBoolean() ? "true" : "false";
+      case LLSDType.Integer:
+        return `i${sd.asBigInt()}`;
+      case LLSDType.Real:
+        return `r${sd.asReal()}`;
+      case LLSDType.String:
+        return `'${sd.asString()}'`;
+      default:
+        return "!";
     }
   }
 
   public static fromNotation(text: string): LLSD {
     const clean = text.trim();
-    if (clean === '!') return LLSD.undefined;
-    if (clean.startsWith('i')) return new LLSD(BigInt(clean.substring(1)));
-    if (clean.startsWith('r')) return new LLSD(parseFloat(clean.substring(1)));
-    if (clean.startsWith("'") && clean.endsWith("'")) return new LLSD(clean.substring(1, clean.length - 1));
+    if (clean === "!") return LLSD.undefined;
+    if (clean.startsWith("i")) return new LLSD(BigInt(clean.substring(1)));
+    if (clean.startsWith("r")) return new LLSD(parseFloat(clean.substring(1)));
+    if (clean.startsWith("'") && clean.endsWith("'"))
+      return new LLSD(clean.substring(1, clean.length - 1));
     return LLSD.undefined;
   }
 }

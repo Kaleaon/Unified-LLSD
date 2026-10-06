@@ -1,8 +1,8 @@
 #ifndef UNIFIED_LLSD_LLURI_H
 #define UNIFIED_LLSD_LLURI_H
 
-#include <string>
 #include <ostream>
+#include <string>
 
 namespace llsd {
 
@@ -11,15 +11,15 @@ public:
     std::string mUri;
 
     LLURI();
-    explicit LLURI(const std::string& uri);
+    explicit LLURI(const std::string &uri);
 
     std::string asString() const { return mUri; }
 
-    bool operator==(const LLURI& rhs) const { return mUri == rhs.mUri; }
-    bool operator!=(const LLURI& rhs) const { return mUri != rhs.mUri; }
+    bool operator==(const LLURI &rhs) const { return mUri == rhs.mUri; }
+    bool operator!=(const LLURI &rhs) const { return mUri != rhs.mUri; }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const LLURI& uri) {
+inline std::ostream &operator<<(std::ostream &os, const LLURI &uri) {
     return os << uri.asString();
 }
 

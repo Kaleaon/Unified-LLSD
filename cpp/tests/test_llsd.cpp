@@ -1,8 +1,8 @@
-#include <iostream>
-#include <cassert>
-#include <cmath>
 #include "llsd/llsd.h"
 #include "llsd/llsdserialize.h"
+#include <cassert>
+#include <cmath>
+#include <iostream>
 
 int main() {
     std::cout << "Running C++ LLSD Conformance Tests..." << std::endl;
@@ -31,7 +31,8 @@ int main() {
     assert(backXml["str"].asString() == "hello world");
     assert(backXml["bool"].asBoolean() == true);
 
-    // Test 4: Binary Round-trip & Endianness (Date is LE 8-byte double, Int is BE)
+    // Test 4: Binary Round-trip & Endianness (Date is LE 8-byte double, Int is
+    // BE)
     llsd::LLDate testDate(123456789.0);
     mapSd["date"] = testDate;
     std::vector<uint8_t> bin = llsd::LLSDSerialize::toBinary(mapSd);

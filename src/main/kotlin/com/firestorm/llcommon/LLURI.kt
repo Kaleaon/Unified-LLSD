@@ -8,7 +8,7 @@ class LLURI private constructor(
     val escapedOpaque: String,
     val escapedAuthority: String,
     val escapedPath: String,
-    val escapedQuery: String
+    val escapedQuery: String,
 ) {
     constructor() : this("", "", "", "", "")
 
@@ -71,11 +71,15 @@ class LLURI private constructor(
 
     fun asString(): String {
         if (scheme.isEmpty()) return escapedOpaque
-        val opaque = if (escapedOpaque.isNotEmpty()) escapedOpaque
-            else buildString {
-                if (escapedAuthority.isNotEmpty()) append("//").append(escapedAuthority)
-                append(escapedPath)
-                if (escapedQuery.isNotEmpty()) append('?').append(escapedQuery)
+        val opaque =
+            if (escapedOpaque.isNotEmpty()) {
+                escapedOpaque
+            } else {
+                buildString {
+                    if (escapedAuthority.isNotEmpty()) append("//").append(escapedAuthority)
+                    append(escapedPath)
+                    if (escapedQuery.isNotEmpty()) append('?').append(escapedQuery)
+                }
             }
         return "$scheme:$opaque"
     }
@@ -84,8 +88,11 @@ class LLURI private constructor(
         if (escapedQuery.isEmpty()) return emptyMap()
         return escapedQuery.split('&').mapNotNull { pair ->
             val eqIdx = pair.indexOf('=')
-            if (eqIdx < 0) null
-            else unescape(pair.substring(0, eqIdx)) to unescape(pair.substring(eqIdx + 1))
+            if (eqIdx < 0) {
+                null
+            } else {
+                unescape(pair.substring(0, eqIdx)) to unescape(pair.substring(eqIdx + 1))
+            }
         }.toMap()
     }
 
@@ -100,11 +107,12 @@ class LLURI private constructor(
     override fun hashCode(): Int = asString().hashCode()
 
     companion object {
-        private val UNRESERVED = buildString {
-            append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-            append("0123456789")
-            append("-._~")
-        }
+        private val UNRESERVED =
+            buildString {
+                append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+                append("0123456789")
+                append("-._~")
+            }
         private val UNRESERVED_SORTED = UNRESERVED.toSortedSet().joinToString("")
 
         fun fromString(s: String): LLURI {
@@ -121,7 +129,10 @@ class LLURI private constructor(
             return parseOpaque(scheme, opaque)
         }
 
-        private fun parseOpaque(scheme: String, opaque: String): LLURI {
+        private fun parseOpaque(
+            scheme: String,
+            opaque: String,
+        ): LLURI {
             var authority = ""
             var path = opaque
             var query = ""
@@ -158,7 +169,12 @@ class LLURI private constructor(
             return LLURI(scheme, opaque, authority, path, query)
         }
 
-        fun buildHTTP(host: String, port: Int, escapedPath: String, escapedQuery: String = ""): LLURI {
+        fun buildHTTP(
+            host: String,
+            port: Int,
+            escapedPath: String,
+            escapedQuery: String = "",
+        ): LLURI {
             val scheme = "http"
             val authority = if (port == 80) host else "$host:$port"
             val opaque = "//$authority$escapedPath${if (escapedQuery.isNotEmpty()) "?$escapedQuery" else ""}"
@@ -167,49 +183,56 @@ class LLURI private constructor(
 
         fun escape(str: String): String = escapeWithAllowed(str, UNRESERVED_SORTED, sorted = true)
 
-        fun escapeQueryValue(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,=", sorted = false)
+        fun escapeQueryValue(str: String): String = escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,=", sorted = false)
 
-        fun escapeQueryVariable(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,", sorted = false)
+        fun escapeQueryVariable(str: String): String = escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,", sorted = false)
 
-        fun escapeWithAllowed(str: String, allowed: String, sorted: Boolean = false): String {
+        fun escapeWithAllowed(
+            str: String,
+            allowed: String,
+            sorted: Boolean = false,
+        ): String {
             val allowedSet = if (sorted) allowed.toSortedSet() else allowed.toSet()
             return buildString {
                 for (c in str) {
-                    if (c in allowedSet) append(c)
-                    else append(encodeChar(c))
+                    if (c in allowedSet) {
+                        append(c)
+                    } else {
+                        append(encodeChar(c))
+                    }
                 }
             }
         }
 
-        fun unescape(str: String): String = buildString {
-            var i = 0
-            while (i < str.length) {
-                if (str[i] == '%' && i + 2 < str.length) {
-                    val hex = str.substring(i + 1, i + 3)
-                    val byte = hex.toIntOrNull(16)
-                    if (byte != null) {
-                        append(byte.toChar())
-                        i += 3
-                        continue
+        fun unescape(str: String): String =
+            buildString {
+                var i = 0
+                while (i < str.length) {
+                    if (str[i] == '%' && i + 2 < str.length) {
+                        val hex = str.substring(i + 1, i + 3)
+                        val byte = hex.toIntOrNull(16)
+                        if (byte != null) {
+                            append(byte.toChar())
+                            i += 3
+                            continue
+                        }
                     }
+                    append(str[i])
+                    i++
                 }
-                append(str[i])
-                i++
             }
-        }
 
         private fun encodeChar(c: Char): String {
             val bytes = c.toString().toByteArray(Charsets.UTF_8)
             return bytes.joinToString("") { b -> "%%%02X".format(b) }
         }
 
-        private fun defaultPortForScheme(scheme: String): Int = when (scheme) {
-            "http" -> 80
-            "https" -> 443
-            "ftp" -> 21
-            else -> -1
-        }
+        private fun defaultPortForScheme(scheme: String): Int =
+            when (scheme) {
+                "http" -> 80
+                "https" -> 443
+                "ftp" -> 21
+                else -> -1
+            }
     }
 }
