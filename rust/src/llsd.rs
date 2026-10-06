@@ -4,8 +4,9 @@ use super::uuid::LlUuid;
 use super::date::LlDate;
 use super::uri::LlUri;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum Llsd {
+    #[default]
     Undefined,
     Boolean(bool),
     Integer(i64), // 64-bit integer support
@@ -46,7 +47,8 @@ impl Llsd {
 
     pub fn as_i64(&self) -> i64 {
         match self {
-            Llsd::Boolean(b) => if *b { 1 } else { 0 },
+            Llsd::Boolean(true) => 1,
+            Llsd::Boolean(false) => 0,
             Llsd::Integer(i) => *i,
             Llsd::Real(r) => *r as i64,
             Llsd::String(s) => s.parse().unwrap_or(0),
@@ -60,7 +62,8 @@ impl Llsd {
 
     pub fn as_f64(&self) -> f64 {
         match self {
-            Llsd::Boolean(b) => if *b { 1.0 } else { 0.0 },
+            Llsd::Boolean(true) => 1.0,
+            Llsd::Boolean(false) => 0.0,
             Llsd::Integer(i) => *i as f64,
             Llsd::Real(r) => *r,
             Llsd::String(s) => match s.to_lowercase().as_str() {
@@ -156,12 +159,6 @@ impl Llsd {
 
     pub fn empty_array() -> Llsd {
         Llsd::Array(Vec::new())
-    }
-}
-
-impl Default for Llsd {
-    fn default() -> Self {
-        Llsd::Undefined
     }
 }
 

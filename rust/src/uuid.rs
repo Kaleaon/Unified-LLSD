@@ -31,17 +31,6 @@ impl LlUuid {
         }
         Some(LlUuid { bytes })
     }
-
-    pub fn to_string(&self) -> String {
-        format!(
-            "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-            self.bytes[0], self.bytes[1], self.bytes[2], self.bytes[3],
-            self.bytes[4], self.bytes[5],
-            self.bytes[6], self.bytes[7],
-            self.bytes[8], self.bytes[9],
-            self.bytes[10], self.bytes[11], self.bytes[12], self.bytes[13], self.bytes[14], self.bytes[15]
-        )
-    }
 }
 
 impl Default for LlUuid {
@@ -52,6 +41,14 @@ impl Default for LlUuid {
 
 impl fmt::Display for LlUuid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(
+            f,
+            "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+            self.bytes[0], self.bytes[1], self.bytes[2], self.bytes[3],
+            self.bytes[4], self.bytes[5],
+            self.bytes[6], self.bytes[7],
+            self.bytes[8], self.bytes[9],
+            self.bytes[10], self.bytes[11], self.bytes[12], self.bytes[13], self.bytes[14], self.bytes[15]
+        )
     }
 }
