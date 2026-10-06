@@ -13,7 +13,11 @@ import {
     LLSDURI,
     LLSDBinary,
     LLSDSerialize,
-    MeshAssetDecoder
+    MeshAssetDecoder,
+    bindKeyboardHandlers,
+    applyFocusRingStyle,
+    sanitizeCSSFocusRules,
+    UIComponent
 } from '../index.js';
 
 test('AssetSchemaAdapter constants and LOD mapping', () => {
@@ -108,4 +112,76 @@ test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     assert.equal(result.jointInfluences[0].jointIndex, 0);
     assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
+});
+
+test('UI Component tabindex="0" and Keyboard Activation Handlers (Enter / Space)', () => {
+    let clickCount = 0;
+    let defaultPrevented = false;
+
+    // Mock div/canvas interactive DOM element
+    const listeners: Record<string, (evt: any) => void> = {};
+    const mockControl = {
+        tagName: 'DIV',
+        attributes: {} as Record<string, string>,
+        style: {} as Record<string, string>,
+        tabIndex: -1,
+        setAttribute(name: string, val: string) {
+            this.attributes[name] = val;
+        },
+        addEventListener(event: string, fn: (evt: any) => void) {
+            listeners[event] = fn;
+        },
+        removeEventListener(event: string) {
+            delete listeners[event];
+        }
+    };
+
+    const component = new UIComponent(mockControl, {
+        onClick: () => { clickCount++; },
+        label: 'Interactive Viewer Canvas',
+        role: 'button'
+    });
+
+    // Check tabindex="0" set on div / canvas element
+    assert.equal(mockControl.attributes['tabindex'], '0');
+    assert.equal(mockControl.tabIndex, 0);
+    assert.equal(mockControl.attributes['role'], 'button');
+    assert.equal(mockControl.attributes['aria-label'], 'Interactive Viewer Canvas');
+
+    // Check high contrast focus ring style applied
+    assert.equal(mockControl.style['outline'], '2px solid #005fcc');
+    assert.equal(mockControl.style['outlineOffset'], '2px');
+
+    // Simulate Enter keydown
+    listeners['keydown']({ key: 'Enter' });
+    assert.equal(clickCount, 1);
+
+    // Simulate Space keydown and verify preventDefault() called to stop page scroll
+    listeners['keydown']({
+        key: ' ',
+        preventDefault: () => { defaultPrevented = true; }
+    });
+    assert.equal(clickCount, 2);
+    assert.equal(defaultPrevented, true);
+
+    // Simulate Tab / Arrow keys (should NOT trigger click)
+    listeners['keydown']({ key: 'Tab' });
+    listeners['keydown']({ key: 'ArrowDown' });
+    assert.equal(clickCount, 2);
+
+    component.destroy();
+});
+
+test('CSS focus ring rules replace outline: none with high-contrast visible focus rings', () => {
+    const badCSS = `
+        .viewer-control { outline: none; border: 1px solid #ccc; }
+        canvas:focus { outline: 0 !important; }
+    `;
+
+    const sanitized = sanitizeCSSFocusRules(badCSS);
+
+    assert.ok(!sanitized.includes('outline: none'));
+    assert.ok(!sanitized.includes('outline: 0'));
+    assert.ok(sanitized.includes('outline: 2px solid #005fcc; outline-offset: 2px;'));
+    assert.ok(sanitized.includes(':focus-visible'));
 });
