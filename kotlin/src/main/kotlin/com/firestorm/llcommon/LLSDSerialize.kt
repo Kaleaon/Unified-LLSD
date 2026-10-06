@@ -34,6 +34,44 @@ object LLSDSerialize {
 
     enum class Format { XML, BINARY, NOTATION, JSON }
 
+    private val PREFIX_BINARY_1 = "<?llsd/binary?>".toByteArray(Charsets.US_ASCII)
+    private val PREFIX_BINARY_2 = "<? llsd/binary ?>".toByteArray(Charsets.US_ASCII)
+    private val PREFIX_NOTATION_1 = "<?llsd/notation?>".toByteArray(Charsets.US_ASCII)
+    private val PREFIX_NOTATION_2 = "<? llsd/notation ?>".toByteArray(Charsets.US_ASCII)
+    private val PREFIX_XML_1 = "<?xml".toByteArray(Charsets.US_ASCII)
+    private val PREFIX_XML_2 = "<llsd>".toByteArray(Charsets.US_ASCII)
+
+    private fun startsWithAt(data: ByteArray, offset: Int, prefix: ByteArray): Boolean {
+        if (data.size - offset < prefix.size) return false
+        for (i in prefix.indices) {
+            if (data[offset + i] != prefix[i]) return false
+        }
+        return true
+    }
+
+    private fun ByteArray.indexOfByte(b: Byte, from: Int = 0, to: Int = size): Int {
+        val startIdx = from.coerceAtLeast(0)
+        val endIdx = minOf(size, to)
+        for (i in startIdx until endIdx) {
+            if (this[i] == b) return i
+        }
+        return -1
+    }
+
+    private fun isAsciiWhitespace(b: Byte): Boolean {
+        val c = b.toInt() and 0xFF
+        return c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D
+    }
+
+    private fun skipAsciiWhitespace(data: ByteArray, offset: Int = 0, length: Int = data.size - offset): Int {
+        val end = minOf(data.size, offset + length)
+        var pos = offset.coerceAtLeast(0)
+        while (pos < end && isAsciiWhitespace(data[pos])) {
+            pos++
+        }
+        return pos
+    }
+
     // ── Format auto-detection ────────────────────────────────────────────────
 
     /**
@@ -42,36 +80,52 @@ object LLSDSerialize {
      */
     fun parse(data: ByteArray): LLSD {
         val format = detectFormat(data) ?: Format.XML
-        val body = stripHeader(data, format)
+        val bodyOffset = stripHeaderOffset(data, format)
+        val bodyLen = data.size - bodyOffset
         return when (format) {
-            Format.BINARY -> fromBinary(body)
-            Format.NOTATION -> fromNotation(body.toString(Charsets.UTF_8))
-            Format.XML -> fromXML(body.toString(Charsets.UTF_8))
-            Format.JSON -> fromJSON(body.toString(Charsets.UTF_8))
+            Format.BINARY -> fromBinary(data, bodyOffset, bodyLen)
+            Format.NOTATION -> fromNotation(String(data, bodyOffset, bodyLen, Charsets.UTF_8))
+            Format.XML -> fromXML(String(data, bodyOffset, bodyLen, Charsets.UTF_8))
+            Format.JSON -> fromJSON(String(data, bodyOffset, bodyLen, Charsets.UTF_8))
         }
     }
 
     fun detectFormat(data: ByteArray): Format? {
-        val prefix = data.take(64).toByteArray().toString(Charsets.ISO_8859_1).trimStart()
+        val start = skipAsciiWhitespace(data, 0, minOf(data.size, 64))
+        if (start >= data.size) return null
         return when {
-            prefix.startsWith("<?llsd/binary?>") || prefix.startsWith("<? llsd/binary ?>") -> Format.BINARY
-            prefix.startsWith("<?llsd/notation?>") || prefix.startsWith("<? llsd/notation ?>") -> Format.NOTATION
-            prefix.startsWith("<?xml") || prefix.startsWith("<llsd>") -> Format.XML
-            prefix.startsWith("{") || prefix.startsWith("[") -> Format.JSON
+            startsWithAt(data, start, PREFIX_BINARY_1) || startsWithAt(data, start, PREFIX_BINARY_2) -> Format.BINARY
+            startsWithAt(data, start, PREFIX_NOTATION_1) || startsWithAt(data, start, PREFIX_NOTATION_2) -> Format.NOTATION
+            startsWithAt(data, start, PREFIX_XML_1) || startsWithAt(data, start, PREFIX_XML_2) -> Format.XML
+            data[start] == '{'.code.toByte() || data[start] == '['.code.toByte() -> Format.JSON
             else -> null
         }
     }
 
-    private fun stripHeader(data: ByteArray, format: Format): ByteArray {
-        val text = data.toString(Charsets.ISO_8859_1)
-        val newline = text.indexOf('\n')
+    fun stripHeaderOffset(data: ByteArray, format: Format, offset: Int = 0, length: Int = data.size - offset): Int {
+        val start = skipAsciiWhitespace(data, offset, length)
+        val end = minOf(data.size, offset + length)
+        if (start >= end) return offset
+
+        val newline = data.indexOfByte('\n'.code.toByte(), start, end)
         return when (format) {
-            Format.BINARY -> if (text.startsWith("<?") && newline > 0) data.copyOfRange(newline + 1, data.size) else data
-            Format.NOTATION -> if (text.startsWith("<?llsd") || text.startsWith("<? llsd")) {
-                if (newline > 0) data.copyOfRange(newline + 1, data.size) else data
-            } else data
-            else -> data
+            Format.BINARY -> {
+                if (data.size - start >= 2 && data[start] == '<'.code.toByte() && data[start + 1] == '?'.code.toByte() && newline > 0) {
+                    newline + 1
+                } else offset
+            }
+            Format.NOTATION -> {
+                if ((startsWithAt(data, start, PREFIX_NOTATION_1) || startsWithAt(data, start, PREFIX_NOTATION_2)) && newline > 0) {
+                    newline + 1
+                } else offset
+            }
+            else -> offset
         }
+    }
+
+    private fun stripHeader(data: ByteArray, format: Format): ByteArray {
+        val bodyOffset = stripHeaderOffset(data, format)
+        return if (bodyOffset == 0) data else data.copyOfRange(bodyOffset, data.size)
     }
 
     // ── XML ──────────────────────────────────────────────────────────────────
@@ -632,14 +686,13 @@ object LLSDSerialize {
         }
     }
 
-    fun fromBinary(data: ByteArray): LLSD {
-        // Tolerate optional `<? llsd/binary ?>\n` cookie.
-        var start = 0
-        if (data.size >= 2 && data[0] == '<'.code.toByte() && data[1] == '?'.code.toByte()) {
-            val nl = data.indexOf('\n'.code.toByte())
-            if (nl > 0) start = nl + 1
-        }
-        val dis = DataInputStream(java.io.ByteArrayInputStream(data, start, data.size - start))
+    fun fromBinary(data: ByteArray): LLSD = fromBinary(data, 0, data.size)
+
+    fun fromBinary(data: ByteArray, offset: Int, length: Int): LLSD {
+        val bodyOffset = stripHeaderOffset(data, Format.BINARY, offset, length)
+        val end = offset + length
+        val actualLength = (end - bodyOffset).coerceAtLeast(0)
+        val dis = DataInputStream(java.io.ByteArrayInputStream(data, bodyOffset, actualLength))
         return readBinary(dis)
     }
 

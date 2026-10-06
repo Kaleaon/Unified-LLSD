@@ -318,6 +318,66 @@ class LLSDSerializeAutoDetectTest {
         val data = "<llsd><integer>1</integer></llsd>".toByteArray()
         assertEquals(LLSDSerialize.Format.XML, LLSDSerialize.detectFormat(data))
     }
+
+    @Test fun detectsFormatWithLeadingWhitespace() {
+        val binaryData = "  \t\n  <? llsd/binary ?>\n".toByteArray(Charsets.US_ASCII) + LLSDSerialize.toBinary(LLSD.integer(100))
+        assertEquals(LLSDSerialize.Format.BINARY, LLSDSerialize.detectFormat(binaryData))
+        assertEquals(100, LLSDSerialize.parse(binaryData).asInt())
+
+        val jsonMap = " \r\n {\"a\": 1}".toByteArray(Charsets.US_ASCII)
+        assertEquals(LLSDSerialize.Format.JSON, LLSDSerialize.detectFormat(jsonMap))
+
+        val jsonArray = "\t [1, 2]".toByteArray(Charsets.US_ASCII)
+        assertEquals(LLSDSerialize.Format.JSON, LLSDSerialize.detectFormat(jsonArray))
+    }
+
+    @Test fun stripHeaderOffsetCalculatesCorrectBodyOffset() {
+        val binaryHeader = "<? llsd/binary ?>\n".toByteArray(Charsets.US_ASCII)
+        val binaryPayload = binaryHeader + LLSDSerialize.toBinary(LLSD.string("test_offset"))
+        val offset = LLSDSerialize.stripHeaderOffset(binaryPayload, LLSDSerialize.Format.BINARY)
+        assertEquals(binaryHeader.size, offset)
+
+        val parsed = LLSDSerialize.fromBinary(binaryPayload, offset, binaryPayload.size - offset)
+        assertEquals("test_offset", parsed.asString())
+
+        val rawBinary = LLSDSerialize.toBinary(LLSD.integer(42))
+        assertEquals(0, LLSDSerialize.stripHeaderOffset(rawBinary, LLSDSerialize.Format.BINARY))
+    }
+
+    @Test fun fromBinaryWithOffsetAndLengthReadsSubBuffer() {
+        val header = "junk_data_before_llsd_".toByteArray(Charsets.US_ASCII)
+        val binary = LLSDSerialize.toBinary(LLSD.integer(12345))
+        val footer = "_junk_data_after".toByteArray(Charsets.US_ASCII)
+        val combined = header + binary + footer
+
+        val result = LLSDSerialize.fromBinary(combined, header.size, binary.size)
+        assertEquals(12345, result.asInt())
+    }
+
+    @Test fun largeBinaryPayloadNoStringAllocationOrOOM() {
+        // Construct a 2MB binary payload with LLSD binary map
+        val largeBytes = ByteArray(2 * 1024 * 1024) { (it % 256).toByte() }
+        val sd = LLSD.map("data" to LLSD.of(largeBytes))
+        val encodedBody = LLSDSerialize.toBinary(sd)
+        val fullPayload = LLSDSerialize.BINARY_HEADER.toByteArray(Charsets.US_ASCII) + encodedBody
+
+        // Force GC before baseline memory measurement
+        System.gc()
+        val memBefore = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+
+        // De-serialize payload
+        val parsed = LLSDSerialize.parse(fullPayload)
+        val extractedData = parsed["data"].asBinary()
+        assertTrue(largeBytes.contentEquals(extractedData))
+
+        val memAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+        assertTrue(memAfter - memBefore < fullPayload.size * 5L)
+
+        // Ensure stream reading works directly via fromBinary with offset
+        val directOffset = LLSDSerialize.stripHeaderOffset(fullPayload, LLSDSerialize.Format.BINARY)
+        val parsedDirect = LLSDSerialize.fromBinary(fullPayload, directOffset, fullPayload.size - directOffset)
+        assertTrue(largeBytes.contentEquals(parsedDirect["data"].asBinary()))
+    }
 }
 
 class LLSDSerializeJsonTest {
