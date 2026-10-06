@@ -346,3 +346,100 @@ class LLSDSerializeJsonTest {
         assertEquals("é", sd.asString())
     }
 }
+
+class LLDateOptimizationsTest {
+
+    @Test fun testStaticFormattersExist() {
+        assertNotNull(LLDate.ISO_FORMATTER)
+        assertNotNull(LLDate.PARSE_FORMATTER)
+    }
+
+    @Test fun testToISOStringFormat() {
+        val epoch = LLDate(0.0)
+        assertEquals("1970-01-01T00:00:00Z", epoch.toISOString())
+
+        val withSubseconds = LLDate(1234567.5)
+        val iso = withSubseconds.toISOString()
+        assertTrue(iso.startsWith("1970-01-15T06:56:07"))
+        assertTrue(iso.endsWith("Z"))
+
+        val nullDate = LLDate.NULL
+        assertEquals("1970-01-01T00:00:00Z", nullDate.toISOString())
+    }
+
+    @Test fun testFromISOStringParsing() {
+        val date1 = LLDate.fromISOString("1970-01-01T00:00:00Z")
+        assertNotNull(date1)
+        assertEquals(0.0, date1.secondsSinceEpoch)
+
+        val date2 = LLDate.fromISOString("1970-01-01T00:00:00")
+        assertNotNull(date2)
+        assertEquals(0.0, date2.secondsSinceEpoch)
+
+        val date3 = LLDate.fromISOString("1970-01-15T06:56:07.50Z")
+        assertNotNull(date3)
+        assertEquals(1234567.5, date3.secondsSinceEpoch)
+
+        val invalid = LLDate.fromISOString("not-a-date")
+        assertTrue(invalid == null)
+    }
+
+    @Test fun testISOStringRoundTrip() {
+        val date = LLDate(1600000000.0)
+        val formatted = date.toISOString()
+        val parsed = LLDate.fromISOString(formatted)
+        assertNotNull(parsed)
+        assertEquals(date.secondsSinceEpoch, parsed.secondsSinceEpoch)
+    }
+}
+
+class LLURIOptimizationsTest {
+
+    @Test fun testHexTable() {
+        assertEquals(256, LLURI.HEX_TABLE.size)
+        assertEquals("%00", LLURI.HEX_TABLE[0])
+        assertEquals("%20", LLURI.HEX_TABLE[32])
+        assertEquals("%3C", LLURI.HEX_TABLE[60])
+        assertEquals("%FF", LLURI.HEX_TABLE[255])
+    }
+
+    @Test fun testAsciiMasksAndConstants() {
+        assertEquals(128, LLURI.UNRESERVED.size)
+        assertEquals(128, LLURI.QUERY_VALUE_ALLOWED.size)
+        assertEquals(128, LLURI.QUERY_VARIABLE_ALLOWED.size)
+
+        assertTrue(LLURI.UNRESERVED['a'.code])
+        assertTrue(LLURI.UNRESERVED['Z'.code])
+        assertTrue(LLURI.UNRESERVED['9'.code])
+        assertTrue(LLURI.UNRESERVED['-'.code])
+        assertEquals(false, LLURI.UNRESERVED[' '.code])
+
+        assertTrue(LLURI.QUERY_VALUE_ALLOWED['='.code])
+        assertEquals(false, LLURI.QUERY_VARIABLE_ALLOWED['='.code])
+
+        assertTrue(LLURI.UNRESERVED_MASK.contentEquals(LLURI.UNRESERVED))
+        assertTrue(LLURI.QUERY_VALUE_ALLOWED_MASK.contentEquals(LLURI.QUERY_VALUE_ALLOWED))
+        assertTrue(LLURI.QUERY_VARIABLE_ALLOWED_MASK.contentEquals(LLURI.QUERY_VARIABLE_ALLOWED))
+
+        assertTrue("http" in LLURI.HIERARCHICAL_SCHEMES)
+        assertTrue("https" in LLURI.HIERARCHICAL_SCHEMES)
+        assertTrue("secondlife" in LLURI.HIERARCHICAL_SCHEMES)
+    }
+
+    @Test fun testEscapingAndUnescaping() {
+        assertEquals("hello%20world", LLURI.escape("hello world"))
+        assertEquals("a=b%26c=d", LLURI.escapeQueryValue("a=b&c=d"))
+        assertEquals("a%3Db%26c%3Dd", LLURI.escapeQueryVariable("a=b&c=d"))
+
+        assertEquals("h%C3%A9llo", LLURI.escape("héllo"))
+        assertEquals("hello world", LLURI.unescape("hello%20world"))
+        assertEquals("hÃ©llo", LLURI.unescape("h%C3%A9llo"))
+    }
+
+    @Test fun testEscapeWithAllowedCustomMaskAndString() {
+        val customMask = BooleanArray(128) { i -> i.toChar() in 'a'..'z' }
+        assertEquals("hello%20%57orld", LLURI.escapeWithAllowed("hello World", customMask))
+
+        assertEquals("hello%20%57orld", LLURI.escapeWithAllowed("hello World", "abcdefghijklmnopqrstuvwxyz"))
+    }
+}
