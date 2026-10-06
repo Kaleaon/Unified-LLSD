@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'llsd.dart';
-import 'lluuid.dart';
 import 'lldate.dart';
-import 'lluri.dart';
 
 class LLSDSerialize {
   static const String binaryHeader = "<? llsd/binary ?>\n";
@@ -59,7 +57,6 @@ class LLSDSerialize {
         break;
       case LLSDType.map:
         sb.write('<map>');
-        final map = sd as dynamic;
         // Iterate map entries
         break;
       case LLSDType.array:
