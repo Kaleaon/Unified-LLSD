@@ -124,7 +124,11 @@ class TestAssetSchemaConformance(unittest.TestCase):
             content = f.read()
 
         self.assertIn("MAX_RIGGED_MESH_JOINTS: number = 256", content)
-        self.assertIn("JOINT_SENTINEL: number = 0xFF", content)
+        self.assertTrue(
+            "JOINT_SENTINEL: number = 0xFF" in content
+            or "JOINT_SENTINEL: number = 0xff" in content,
+            "JOINT_SENTINEL must be defined as 0xFF or 0xff in TypeScript bindings",
+        )
         self.assertIn("class TextureTransformAdapter", content)
         self.assertIn("getLodKey", content)
 

@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "node:test";
 import assert from "node:assert";
 import { LLSD } from "../llsd.js";
 import { LLDate } from "../lldate.js";
