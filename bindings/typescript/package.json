@@ -6,8 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/tests/viewer.test.js",
-    "test:source": "tsc && node --test dist/tests/viewer.test.js"
+    "test": "node --test dist/tests/viewer.test.js dist/tests/primitives.test.js",
+    "test:source": "tsc && node --test dist/tests/viewer.test.js dist/tests/primitives.test.js"
   },
   "keywords": [
     "llsd",
@@ -22,7 +22,9 @@
   "author": "Unified-LLSD Contributors",
   "license": "LGPL-2.1-or-later",
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.20.5",
+    "jsdom": "^30.1.2",
     "typescript": "^5.9.3"
   }
 }

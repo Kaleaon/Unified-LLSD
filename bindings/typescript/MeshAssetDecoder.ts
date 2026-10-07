@@ -13,6 +13,7 @@ import {
     GLTFMaterialAdapter,
     AlphaMode
 } from './AssetSchemaAdapter.js';
+import { IAccessibleControlProps } from './ui/primitives/AccessibleControl.js';
 
 export class MeshAssetDecoder {
     /**
@@ -77,13 +78,15 @@ export class MeshAssetDecoder {
         alphaMode: AlphaMode = AlphaMode.OPAQUE,
         alphaCutoff: number = 0.5,
         doubleSided: boolean = false,
-        transforms: TextureTransformAdapter[] = []
+        transforms: TextureTransformAdapter[] = [],
+        accessibilityProps?: IAccessibleControlProps
     ): GLTFMaterialAdapter {
         return {
             alphaMode,
             alphaCutoff,
             doubleSided,
-            transforms
+            transforms,
+            ...(accessibilityProps ? { accessibilityProps } : {})
         };
     }
 
@@ -95,7 +98,8 @@ export class MeshAssetDecoder {
         positions: Vector3[],
         normals: Vector3[],
         texCoords: Vector2[],
-        jointInfluences: JointInfluence[]
+        jointInfluences: JointInfluence[],
+        accessibilityProps?: IAccessibleControlProps
     ): MeshBlockAdapter {
         return {
             lod,
@@ -103,7 +107,8 @@ export class MeshAssetDecoder {
             positions,
             normals,
             texCoords,
-            jointInfluences
+            jointInfluences,
+            ...(accessibilityProps ? { accessibilityProps } : {})
         };
     }
 }
