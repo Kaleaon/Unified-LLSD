@@ -95,6 +95,68 @@ test('LLSD Multi-Format Serialization & Auto-Detect', () => {
     assert.equal(autoParsed.get('balance').asInteger(), 250);
 });
 
+test('CapabilityClient binary parsing & sequence tracking', async () => {
+    const { CapabilityClient } = await import('../CapabilityClient.js');
+    const responsePayload = LLSDValue.map({
+        id: LLSDValue.integer(888),
+        events: LLSDValue.array([
+            LLSDValue.map({
+                message: LLSDValue.string('TeleportFinish'),
+                body: LLSDValue.string('success')
+            })
+        ])
+    });
+    const binaryData = LLSDSerialize.toBinary(responsePayload);
+
+    let capturedBody = '';
+    const mockFetch: any = async (url: string, init: any) => {
+        capturedBody = init.body;
+        return {
+            ok: true,
+            status: 200,
+            headers: new Map([['content-type', 'application/llsd+binary']]),
+            arrayBuffer: async () => binaryData.buffer.slice(binaryData.byteOffset, binaryData.byteOffset + binaryData.byteLength)
+        };
+    };
+
+    const capClient = new CapabilityClient(mockFetch);
+    const result = await capClient.pollEventQueue('https://example.com/eq', 42);
+
+    assert.equal(result.id, 888);
+    assert.equal(result.nextAck, 888);
+    assert.equal(result.events.length, 1);
+    assert.equal(result.events[0].message, 'TeleportFinish');
+    assert.ok(capturedBody.includes('<key>ack</key>') && capturedBody.includes('<integer>42</integer>'));
+});
+
+test('EventQueueClient 502/504 timeout immediate retry vs 500 backoff', async () => {
+    const { CapabilityClient } = await import('../CapabilityClient.js');
+    const { EventQueueClient } = await import('../EventQueueClient.js');
+
+    let callCount = 0;
+    const mockFetch: any = async () => {
+        callCount++;
+        if (callCount === 1) {
+            return { ok: false, status: 504, statusText: 'Gateway Timeout' };
+        }
+        return { ok: false, status: 503, statusText: 'Service Unavailable' };
+    };
+
+    const capClient = new CapabilityClient(mockFetch);
+    const eqClient = new EventQueueClient(capClient);
+    eqClient.queueUrl = 'https://example.com/eq';
+    eqClient.baseDelay = 1000;
+    eqClient.currentDelay = 1000;
+
+    // Call 1: HTTP 504 Gateway Timeout -> resets delay immediately to baseDelay
+    try { await eqClient.pollOnce(); } catch {}
+    assert.equal(eqClient.currentDelay, 1000);
+
+    // Call 2: HTTP 503 Service Unavailable -> exponential backoff to 2000
+    try { await eqClient.pollOnce(); } catch {}
+    assert.equal(eqClient.currentDelay, 2000);
+});
+
 test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     // Construct mock binary joint influence buffer with extended skeleton joint (>163) and 0xFF sentinel
     const mockBuffer = new Uint8Array([
