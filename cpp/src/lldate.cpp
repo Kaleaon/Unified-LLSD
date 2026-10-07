@@ -11,8 +11,9 @@ LLDate::LLDate() : mSecondsSinceEpoch(0.0) {}
 
 LLDate::LLDate(double seconds) : mSecondsSinceEpoch(seconds) {}
 
-LLDate::LLDate(const std::string& isoStr) : mSecondsSinceEpoch(0.0) {
-    if (isoStr.empty()) return;
+LLDate::LLDate(const std::string &isoStr) : mSecondsSinceEpoch(0.0) {
+    if (isoStr.empty())
+        return;
     std::tm tm = {};
     int year = 0, month = 0, day = 0, hour = 0, min = 0;
     double sec = 0.0;
@@ -37,13 +38,12 @@ std::string LLDate::toISOString() const {
     char buf[64];
     double frac = mSecondsSinceEpoch - static_cast<double>(t);
     if (frac > 0.001) {
-        snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%05.2fZ",
-                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                 tm.tm_hour, tm.tm_min, static_cast<double>(tm.tm_sec) + frac);
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%05.2fZ", tm.tm_year + 1900,
+                 tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
+                 static_cast<double>(tm.tm_sec) + frac);
     } else {
-        snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02dZ",
-                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                 tm.tm_hour, tm.tm_min, tm.tm_sec);
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02dZ", tm.tm_year + 1900,
+                 tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
     }
     return std::string(buf);
 }

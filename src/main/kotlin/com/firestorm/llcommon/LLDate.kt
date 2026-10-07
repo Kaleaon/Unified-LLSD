@@ -6,18 +6,19 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 data class LLDate(val secondsSinceEpoch: Double = 0.0) : Comparable<LLDate> {
-
     fun isNull(): Boolean = secondsSinceEpoch == 0.0
 
     fun notNull(): Boolean = secondsSinceEpoch != 0.0
 
     fun toISOString(): String {
         val instant = Instant.ofEpochMilli((secondsSinceEpoch * 1000.0).toLong())
-        val subsecMillis = ((secondsSinceEpoch * 1000.0).toLong() % 1000).toInt()
-            .let { if (it < 0) it + 1000 else it }
-        val base = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            .withZone(ZoneOffset.UTC)
-            .format(instant)
+        val subsecMillis =
+            ((secondsSinceEpoch * 1000.0).toLong() % 1000).toInt()
+                .let { if (it < 0) it + 1000 else it }
+        val base =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+                .withZone(ZoneOffset.UTC)
+                .format(instant)
         return if (subsecMillis > 0) {
             val centiseconds = subsecMillis / 10
             "$base.${centiseconds.toString().padStart(2, '0')}Z"
@@ -45,14 +46,16 @@ data class LLDate(val secondsSinceEpoch: Double = 0.0) : Comparable<LLDate> {
         }
 
         fun fromISOString(s: String): LLDate? {
-            val normalized = when {
-                s.endsWith("Z") -> s
-                s.length == 19 -> "${s}Z"
-                else -> s
-            }
+            val normalized =
+                when {
+                    s.endsWith("Z") -> s
+                    s.length == 19 -> "${s}Z"
+                    else -> s
+                }
             return try {
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SS][.S]X")
-                    .withZone(ZoneOffset.UTC)
+                val formatter =
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SS][.S]X")
+                        .withZone(ZoneOffset.UTC)
                 val instant = Instant.from(formatter.parse(normalized))
                 LLDate(instant.toEpochMilli() / 1000.0)
             } catch (_: DateTimeParseException) {

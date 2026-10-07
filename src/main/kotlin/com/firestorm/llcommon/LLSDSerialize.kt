@@ -1,5 +1,9 @@
 package com.firestorm.llcommon
 
+import org.w3c.dom.Document
+import org.w3c.dom.Element
+import org.w3c.dom.Node
+import org.xml.sax.InputSource
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -12,10 +16,6 @@ import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
-import org.w3c.dom.Document
-import org.w3c.dom.Element
-import org.w3c.dom.Node
-import org.xml.sax.InputSource
 
 /**
  * LLSD (Linden Lab Structured Data) serializer/deserializer.
@@ -27,7 +27,6 @@ import org.xml.sax.InputSource
  * Supports XML, Notation, Binary, and (non-spec) JSON.
  */
 object LLSDSerialize {
-
     const val BINARY_HEADER: String = "<? llsd/binary ?>\n"
     const val NOTATION_HEADER: String = "<? llsd/notation ?>\n"
     const val XML_HEADER: String = "<?xml version=\"1.0\" ?>\n"
@@ -62,14 +61,20 @@ object LLSDSerialize {
         }
     }
 
-    private fun stripHeader(data: ByteArray, format: Format): ByteArray {
+    private fun stripHeader(
+        data: ByteArray,
+        format: Format,
+    ): ByteArray {
         val text = data.toString(Charsets.ISO_8859_1)
         val newline = text.indexOf('\n')
         return when (format) {
             Format.BINARY -> if (text.startsWith("<?") && newline > 0) data.copyOfRange(newline + 1, data.size) else data
-            Format.NOTATION -> if (text.startsWith("<?llsd") || text.startsWith("<? llsd")) {
-                if (newline > 0) data.copyOfRange(newline + 1, data.size) else data
-            } else data
+            Format.NOTATION ->
+                if (text.startsWith("<?llsd") || text.startsWith("<? llsd")) {
+                    if (newline > 0) data.copyOfRange(newline + 1, data.size) else data
+                } else {
+                    data
+                }
             else -> data
         }
     }
@@ -81,10 +86,16 @@ object LLSDSerialize {
     fun toCanonicalXML(sd: LLSD): String = toXML(sd, canonical = true, withDeclaration = false)
 
     /** Full LLSD/XML document with `<?xml version="1.0" ?>` declaration. */
-    fun toXMLDocument(sd: LLSD, canonical: Boolean = false): String =
-        toXML(sd, canonical = canonical, withDeclaration = true)
+    fun toXMLDocument(
+        sd: LLSD,
+        canonical: Boolean = false,
+    ): String = toXML(sd, canonical = canonical, withDeclaration = true)
 
-    private fun toXML(sd: LLSD, canonical: Boolean, withDeclaration: Boolean): String {
+    private fun toXML(
+        sd: LLSD,
+        canonical: Boolean,
+        withDeclaration: Boolean,
+    ): String {
         val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument()
         val root = doc.createElement("llsd")
         doc.appendChild(root)
@@ -98,40 +109,58 @@ object LLSDSerialize {
         return sw.toString()
     }
 
-    private fun xmlElement(doc: Document, sd: LLSD, canonical: Boolean): Element = when (sd) {
-        is LLSD.Undefined -> doc.createElement("undef")
-        is LLSD.LLSDBoolean -> doc.createElement("boolean").also {
-            it.textContent = if (sd.value) "true" else "false"
+    private fun xmlElement(
+        doc: Document,
+        sd: LLSD,
+        canonical: Boolean,
+    ): Element =
+        when (sd) {
+            is LLSD.Undefined -> doc.createElement("undef")
+            is LLSD.LLSDBoolean ->
+                doc.createElement("boolean").also {
+                    it.textContent = if (sd.value) "true" else "false"
+                }
+            is LLSD.LLSDInteger -> doc.createElement("integer").also { it.textContent = sd.value.toString() }
+            is LLSD.LLSDReal -> doc.createElement("real").also { it.textContent = formatRealLLSD(sd.value) }
+            is LLSD.LLSDString ->
+                if (sd.value.isEmpty()) {
+                    doc.createElement("string")
+                } else {
+                    doc.createElement("string").also { it.textContent = sd.value }
+                }
+            is LLSD.LLSDUUID ->
+                if (sd.value.isNull()) {
+                    doc.createElement("uuid")
+                } else {
+                    doc.createElement("uuid").also { it.textContent = sd.value.toString() }
+                }
+            is LLSD.LLSDDate -> doc.createElement("date").also { it.textContent = sd.value.toISOString() }
+            is LLSD.LLSDURI -> doc.createElement("uri").also { it.textContent = sd.value.asString() }
+            is LLSD.LLSDBinary ->
+                doc.createElement("binary").also { el ->
+                    el.setAttribute("encoding", "base64")
+                    if (sd.value.isNotEmpty()) el.textContent = Base64.getEncoder().encodeToString(sd.value)
+                }
+            is LLSD.LLSDMap ->
+                doc.createElement("map").also { el ->
+                    mapEntries(sd.value, canonical).forEach { (k, v) ->
+                        el.appendChild(doc.createElement("key").also { it.textContent = k })
+                        el.appendChild(xmlElement(doc, v, canonical))
+                    }
+                }
+            is LLSD.LLSDArray ->
+                doc.createElement("array").also { el ->
+                    sd.value.forEach { el.appendChild(xmlElement(doc, it, canonical)) }
+                }
         }
-        is LLSD.LLSDInteger -> doc.createElement("integer").also { it.textContent = sd.value.toString() }
-        is LLSD.LLSDReal -> doc.createElement("real").also { it.textContent = formatRealLLSD(sd.value) }
-        is LLSD.LLSDString -> if (sd.value.isEmpty()) doc.createElement("string")
-        else doc.createElement("string").also { it.textContent = sd.value }
-        is LLSD.LLSDUUID -> if (sd.value.isNull()) doc.createElement("uuid")
-        else doc.createElement("uuid").also { it.textContent = sd.value.toString() }
-        is LLSD.LLSDDate -> doc.createElement("date").also { it.textContent = sd.value.toISOString() }
-        is LLSD.LLSDURI -> doc.createElement("uri").also { it.textContent = sd.value.asString() }
-        is LLSD.LLSDBinary -> doc.createElement("binary").also { el ->
-            el.setAttribute("encoding", "base64")
-            if (sd.value.isNotEmpty()) el.textContent = Base64.getEncoder().encodeToString(sd.value)
-        }
-        is LLSD.LLSDMap -> doc.createElement("map").also { el ->
-            mapEntries(sd.value, canonical).forEach { (k, v) ->
-                el.appendChild(doc.createElement("key").also { it.textContent = k })
-                el.appendChild(xmlElement(doc, v, canonical))
-            }
-        }
-        is LLSD.LLSDArray -> doc.createElement("array").also { el ->
-            sd.value.forEach { el.appendChild(xmlElement(doc, it, canonical)) }
-        }
-    }
 
-    private fun formatRealLLSD(v: Double): String = when {
-        v.isNaN() -> "nan"
-        v == Double.POSITIVE_INFINITY -> "inf"
-        v == Double.NEGATIVE_INFINITY -> "-inf"
-        else -> v.toString()
-    }
+    private fun formatRealLLSD(v: Double): String =
+        when {
+            v.isNaN() -> "nan"
+            v == Double.POSITIVE_INFINITY -> "inf"
+            v == Double.NEGATIVE_INFINITY -> "-inf"
+            else -> v.toString()
+        }
 
     private fun parseRealLLSD(s: String): Double {
         val t = s.trim()
@@ -144,75 +173,90 @@ object LLSDSerialize {
     }
 
     fun fromXML(xml: String): LLSD {
-        val factory = DocumentBuilderFactory.newInstance().apply {
-            // Defensive: disable external entity resolution.
-            try { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) } catch (_: Exception) {}
-            try { setFeature("http://xml.org/sax/features/external-general-entities", false) } catch (_: Exception) {}
-            try { setFeature("http://xml.org/sax/features/external-parameter-entities", false) } catch (_: Exception) {}
-            isExpandEntityReferences = false
-        }
+        val factory =
+            DocumentBuilderFactory.newInstance().apply {
+                // Defensive: disable external entity resolution.
+                try {
+                    setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+                } catch (_: Exception) {
+                }
+                try {
+                    setFeature("http://xml.org/sax/features/external-general-entities", false)
+                } catch (_: Exception) {
+                }
+                try {
+                    setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                } catch (_: Exception) {
+                }
+                isExpandEntityReferences = false
+            }
         val doc = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
         val root = doc.documentElement
         val child = firstElementChild(root) ?: return LLSD.Undefined
         return parseXmlNode(child)
     }
 
-    private fun parseXmlNode(el: Element): LLSD = when (el.tagName) {
-        "undef" -> LLSD.Undefined
-        "boolean" -> {
-            val t = el.textContent.trim().lowercase()
-            LLSD.LLSDBoolean(t == "true" || t == "1" || t == "1.0" || t == "t")
-        }
-        "integer" -> LLSD.LLSDInteger(el.textContent.trim().toIntOrNull() ?: 0)
-        "real" -> LLSD.LLSDReal(parseRealLLSD(el.textContent))
-        "string" -> LLSD.LLSDString(el.textContent)
-        "uuid" -> LLSD.LLSDUUID(LLUUID.fromString(el.textContent.trim()) ?: LLUUID.NULL)
-        "date" -> LLSD.LLSDDate(LLDate.fromISOString(el.textContent.trim()) ?: LLDate.NULL)
-        "uri" -> LLSD.LLSDURI(LLURI.fromString(el.textContent.trim()))
-        "binary" -> {
-            val text = el.textContent.trim()
-            val encoding = el.getAttribute("encoding").ifEmpty { "base64" }.lowercase()
-            val bytes = if (text.isEmpty()) ByteArray(0)
-            else when (encoding) {
-                "base64" -> Base64.getDecoder().decode(text)
-                "base16" -> hexDecode(text)
-                "base85" -> throw IllegalArgumentException("LLSD binary base85 is not supported")
-                else -> Base64.getDecoder().decode(text)
+    private fun parseXmlNode(el: Element): LLSD =
+        when (el.tagName) {
+            "undef" -> LLSD.Undefined
+            "boolean" -> {
+                val t = el.textContent.trim().lowercase()
+                LLSD.LLSDBoolean(t == "true" || t == "1" || t == "1.0" || t == "t")
             }
-            LLSD.LLSDBinary(bytes)
-        }
-        "map" -> {
-            val map = mutableMapOf<String, LLSD>()
-            val nodes = el.childNodes
-            var i = 0
-            while (i < nodes.length) {
-                val node = nodes.item(i)
-                if (node is Element && node.tagName == "key") {
-                    val key = node.textContent
-                    var j = i + 1
-                    while (j < nodes.length && nodes.item(j).nodeType != Node.ELEMENT_NODE) j++
-                    val valNode = nodes.item(j)
-                    if (valNode is Element) {
-                        map[key] = parseXmlNode(valNode)
-                        i = j + 1
-                        continue
+            "integer" -> LLSD.LLSDInteger(el.textContent.trim().toIntOrNull() ?: 0)
+            "real" -> LLSD.LLSDReal(parseRealLLSD(el.textContent))
+            "string" -> LLSD.LLSDString(el.textContent)
+            "uuid" -> LLSD.LLSDUUID(LLUUID.fromString(el.textContent.trim()) ?: LLUUID.NULL)
+            "date" -> LLSD.LLSDDate(LLDate.fromISOString(el.textContent.trim()) ?: LLDate.NULL)
+            "uri" -> LLSD.LLSDURI(LLURI.fromString(el.textContent.trim()))
+            "binary" -> {
+                val text = el.textContent.trim()
+                val encoding = el.getAttribute("encoding").ifEmpty { "base64" }.lowercase()
+                val bytes =
+                    if (text.isEmpty()) {
+                        ByteArray(0)
+                    } else {
+                        when (encoding) {
+                            "base64" -> Base64.getDecoder().decode(text)
+                            "base16" -> hexDecode(text)
+                            "base85" -> throw IllegalArgumentException("LLSD binary base85 is not supported")
+                            else -> Base64.getDecoder().decode(text)
+                        }
                     }
+                LLSD.LLSDBinary(bytes)
+            }
+            "map" -> {
+                val map = mutableMapOf<String, LLSD>()
+                val nodes = el.childNodes
+                var i = 0
+                while (i < nodes.length) {
+                    val node = nodes.item(i)
+                    if (node is Element && node.tagName == "key") {
+                        val key = node.textContent
+                        var j = i + 1
+                        while (j < nodes.length && nodes.item(j).nodeType != Node.ELEMENT_NODE) j++
+                        val valNode = nodes.item(j)
+                        if (valNode is Element) {
+                            map[key] = parseXmlNode(valNode)
+                            i = j + 1
+                            continue
+                        }
+                    }
+                    i++
                 }
-                i++
+                LLSD.LLSDMap(map)
             }
-            LLSD.LLSDMap(map)
-        }
-        "array" -> {
-            val list = mutableListOf<LLSD>()
-            val nodes = el.childNodes
-            for (i in 0 until nodes.length) {
-                val node = nodes.item(i)
-                if (node is Element) list.add(parseXmlNode(node))
+            "array" -> {
+                val list = mutableListOf<LLSD>()
+                val nodes = el.childNodes
+                for (i in 0 until nodes.length) {
+                    val node = nodes.item(i)
+                    if (node is Element) list.add(parseXmlNode(node))
+                }
+                LLSD.LLSDArray(list)
             }
-            LLSD.LLSDArray(list)
+            else -> LLSD.Undefined
         }
-        else -> LLSD.Undefined
-    }
 
     private fun firstElementChild(node: Node): Element? {
         val children = node.childNodes
@@ -234,8 +278,7 @@ object LLSDSerialize {
         }
     }
 
-    private fun hexEncode(bytes: ByteArray): String =
-        bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    private fun hexEncode(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     // ── Notation ─────────────────────────────────────────────────────────────
 
@@ -243,7 +286,10 @@ object LLSDSerialize {
 
     fun toCanonicalNotation(sd: LLSD): String = buildString { appendNotation(sd, canonical = true) }
 
-    private fun StringBuilder.appendNotation(sd: LLSD, canonical: Boolean) {
+    private fun StringBuilder.appendNotation(
+        sd: LLSD,
+        canonical: Boolean,
+    ) {
         when (sd) {
             is LLSD.Undefined -> append('!')
             is LLSD.LLSDBoolean -> append(if (sd.value) "true" else "false")
@@ -301,10 +347,13 @@ object LLSDSerialize {
     }
 
     fun fromNotation(text: String): LLSD {
-        val stripped = if (text.startsWith("<?llsd/notation?>") || text.startsWith("<? llsd/notation ?>")) {
-            val nl = text.indexOf('\n')
-            if (nl >= 0) text.substring(nl + 1) else text
-        } else text
+        val stripped =
+            if (text.startsWith("<?llsd/notation?>") || text.startsWith("<? llsd/notation ?>")) {
+                val nl = text.indexOf('\n')
+                if (nl >= 0) text.substring(nl + 1) else text
+            } else {
+                text
+            }
         return NotationParser(stripped).parse()
     }
 
@@ -321,8 +370,9 @@ object LLSDSerialize {
         }
 
         private fun peek(): Char = if (pos < text.length) text[pos] else ' '
-        private fun peekAt(offset: Int): Char =
-            if (pos + offset < text.length) text[pos + offset] else ' '
+
+        private fun peekAt(offset: Int): Char = if (pos + offset < text.length) text[pos + offset] else ' '
+
         private fun consume(): Char = text[pos++]
 
         private fun expect(c: Char) {
@@ -335,16 +385,40 @@ object LLSDSerialize {
         fun parseValue(): LLSD {
             skipWs()
             return when (val c = peek()) {
-                '!' -> { consume(); LLSD.Undefined }
+                '!' -> {
+                    consume()
+                    LLSD.Undefined
+                }
                 'T', 't' -> parseBoolWord(true)
                 'F', 'f' -> parseBoolWord(false)
-                '1' -> { consume(); LLSD.LLSDBoolean(true) }
-                '0' -> { consume(); LLSD.LLSDBoolean(false) }
-                'i' -> { consume(); LLSD.LLSDInteger(parseNumberWord().toIntOrNull() ?: 0) }
-                'r' -> { consume(); LLSD.LLSDReal(parseRealLLSD(parseNumberWord())) }
-                'u' -> { consume(); LLSD.LLSDUUID(LLUUID.fromString(parseUuidLiteral()) ?: LLUUID.NULL) }
-                'd' -> { consume(); LLSD.LLSDDate(LLDate.fromISOString(parseQuotedAfterTag()) ?: LLDate.NULL) }
-                'l' -> { consume(); LLSD.LLSDURI(LLURI.fromString(parseQuotedAfterTag())) }
+                '1' -> {
+                    consume()
+                    LLSD.LLSDBoolean(true)
+                }
+                '0' -> {
+                    consume()
+                    LLSD.LLSDBoolean(false)
+                }
+                'i' -> {
+                    consume()
+                    LLSD.LLSDInteger(parseNumberWord().toIntOrNull() ?: 0)
+                }
+                'r' -> {
+                    consume()
+                    LLSD.LLSDReal(parseRealLLSD(parseNumberWord()))
+                }
+                'u' -> {
+                    consume()
+                    LLSD.LLSDUUID(LLUUID.fromString(parseUuidLiteral()) ?: LLUUID.NULL)
+                }
+                'd' -> {
+                    consume()
+                    LLSD.LLSDDate(LLDate.fromISOString(parseQuotedAfterTag()) ?: LLDate.NULL)
+                }
+                'l' -> {
+                    consume()
+                    LLSD.LLSDURI(LLURI.fromString(parseQuotedAfterTag()))
+                }
                 'b' -> parseBinaryNotation()
                 's' -> parseSizedString()
                 '\'' -> LLSD.LLSDString(parseSingleQuoted())
@@ -427,12 +501,13 @@ object LLSDSerialize {
             return sb.toString()
         }
 
-        private fun decodeEscape(c: Char): Char = when (c) {
-            'n' -> '\n'
-            't' -> '\t'
-            'r' -> '\r'
-            else -> c
-        }
+        private fun decodeEscape(c: Char): Char =
+            when (c) {
+                'n' -> '\n'
+                't' -> '\t'
+                'r' -> '\r'
+                else -> c
+            }
 
         /** `s(<size>)"raw"` — size-prefixed raw string. */
         private fun parseSizedString(): LLSD {
@@ -496,15 +571,16 @@ object LLSDSerialize {
             skipWs()
             while (pos < text.length && peek() != '}') {
                 skipWs()
-                val key = when (peek()) {
-                    '\'' -> parseSingleQuoted()
-                    '"' -> parseDoubleQuoted()
-                    's' -> {
-                        val v = parseSizedString()
-                        (v as? LLSD.LLSDString)?.value ?: ""
+                val key =
+                    when (peek()) {
+                        '\'' -> parseSingleQuoted()
+                        '"' -> parseDoubleQuoted()
+                        's' -> {
+                            val v = parseSizedString()
+                            (v as? LLSD.LLSDString)?.value ?: ""
+                        }
+                        else -> parseNumberWord()
                     }
-                    else -> parseNumberWord()
-                }
                 skipWs()
                 if (peek() == ':') consume()
                 skipWs()
@@ -538,7 +614,10 @@ object LLSDSerialize {
 
     fun toCanonicalBinary(sd: LLSD): ByteArray = toBinary(sd, canonical = true)
 
-    private fun toBinary(sd: LLSD, canonical: Boolean): ByteArray {
+    private fun toBinary(
+        sd: LLSD,
+        canonical: Boolean,
+    ): ByteArray {
         val out = ByteArrayOutputStream()
         val dos = DataOutputStream(out)
         writeBinary(dos, sd, canonical)
@@ -550,8 +629,11 @@ object LLSDSerialize {
         val msb = uuid.uuid.mostSignificantBits
         val lsb = uuid.uuid.leastSignificantBits
         return ByteArray(16) { i ->
-            if (i < 8) ((msb ushr ((7 - i) * 8)) and 0xffL).toByte()
-            else ((lsb ushr ((15 - i) * 8)) and 0xffL).toByte()
+            if (i < 8) {
+                ((msb ushr ((7 - i) * 8)) and 0xffL).toByte()
+            } else {
+                ((lsb ushr ((15 - i) * 8)) and 0xffL).toByte()
+            }
         }
     }
 
@@ -564,7 +646,10 @@ object LLSDSerialize {
     }
 
     /** LLSD binary date is 8-byte little-endian IEEE-754 double seconds since epoch. */
-    private fun writeDateLE(dos: DataOutputStream, seconds: Double) {
+    private fun writeDateLE(
+        dos: DataOutputStream,
+        seconds: Double,
+    ) {
         val buf = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putDouble(seconds).array()
         dos.write(buf)
     }
@@ -574,7 +659,11 @@ object LLSDSerialize {
         return ByteBuffer.wrap(buf).order(ByteOrder.LITTLE_ENDIAN).double
     }
 
-    private fun writeBinary(dos: DataOutputStream, sd: LLSD, canonical: Boolean) {
+    private fun writeBinary(
+        dos: DataOutputStream,
+        sd: LLSD,
+        canonical: Boolean,
+    ) {
         when (sd) {
             is LLSD.Undefined -> dos.writeByte('!'.code)
             is LLSD.LLSDBoolean -> dos.writeByte(if (sd.value) '1'.code else '0'.code)
@@ -643,7 +732,10 @@ object LLSDSerialize {
         return readBinary(dis)
     }
 
-    private fun ByteArray.indexOf(b: Byte, from: Int = 0): Int {
+    private fun ByteArray.indexOf(
+        b: Byte,
+        from: Int = 0,
+    ): Int {
         for (i in from until size) if (this[i] == b) return i
         return -1
     }
@@ -708,27 +800,47 @@ object LLSDSerialize {
 
     fun toCanonicalJSON(sd: LLSD): String = buildString { appendJSON(sd, canonical = true) }
 
-    private fun StringBuilder.appendJSON(sd: LLSD, canonical: Boolean) {
+    private fun StringBuilder.appendJSON(
+        sd: LLSD,
+        canonical: Boolean,
+    ) {
         when (sd) {
             is LLSD.Undefined -> append("null")
             is LLSD.LLSDBoolean -> append(sd.value)
             is LLSD.LLSDInteger -> append(sd.value)
-            is LLSD.LLSDReal -> when {
-                sd.value.isNaN() || sd.value.isInfinite() -> append("null")
-                else -> append(sd.value)
-            }
+            is LLSD.LLSDReal ->
+                when {
+                    sd.value.isNaN() || sd.value.isInfinite() -> append("null")
+                    else -> append(sd.value)
+                }
             is LLSD.LLSDString -> appendJSONString(sd.value)
-            is LLSD.LLSDUUID -> { append('"'); append(sd.value); append('"') }
-            is LLSD.LLSDDate -> { append('"'); append(sd.value.toISOString()); append('"') }
-            is LLSD.LLSDURI -> { append('"'); appendJSONEscaped(sd.value.asString()); append('"') }
+            is LLSD.LLSDUUID -> {
+                append('"')
+                append(sd.value)
+                append('"')
+            }
+            is LLSD.LLSDDate -> {
+                append('"')
+                append(sd.value.toISOString())
+                append('"')
+            }
+            is LLSD.LLSDURI -> {
+                append('"')
+                appendJSONEscaped(sd.value.asString())
+                append('"')
+            }
             is LLSD.LLSDBinary -> {
-                append('"'); append(Base64.getEncoder().encodeToString(sd.value)); append('"')
+                append('"')
+                append(Base64.getEncoder().encodeToString(sd.value))
+                append('"')
             }
             is LLSD.LLSDMap -> {
                 append('{')
                 mapEntries(sd.value, canonical).entries.forEachIndexed { idx, (k, v) ->
                     if (idx > 0) append(',')
-                    appendJSONString(k); append(':'); appendJSON(v, canonical)
+                    appendJSONString(k)
+                    append(':')
+                    appendJSON(v, canonical)
                 }
                 append('}')
             }
@@ -744,7 +856,9 @@ object LLSDSerialize {
     }
 
     private fun StringBuilder.appendJSONString(s: String) {
-        append('"'); appendJSONEscaped(s); append('"')
+        append('"')
+        appendJSONEscaped(s)
+        append('"')
     }
 
     private fun StringBuilder.appendJSONEscaped(s: String) {
@@ -758,26 +872,44 @@ object LLSDSerialize {
         }
     }
 
-    private fun mapEntries(value: Map<String, LLSD>, canonical: Boolean): Map<String, LLSD> =
-        if (canonical) value.toSortedMap() else value
+    private fun mapEntries(
+        value: Map<String, LLSD>,
+        canonical: Boolean,
+    ): Map<String, LLSD> = if (canonical) value.toSortedMap() else value
 
     fun fromJSON(json: String): LLSD = JSONParser(json.trim()).parse()
 
     private class JSONParser(private val text: String) {
         private var pos = 0
 
-        fun parse(): LLSD { skipWs(); return parseValue() }
+        fun parse(): LLSD {
+            skipWs()
+            return parseValue()
+        }
 
-        private fun skipWs() { while (pos < text.length && text[pos].isWhitespace()) pos++ }
+        private fun skipWs() {
+            while (pos < text.length && text[pos].isWhitespace()) pos++
+        }
+
         private fun peek(): Char = if (pos < text.length) text[pos] else ' '
+
         private fun consume(): Char = text[pos++]
 
         private fun parseValue(): LLSD {
             skipWs()
             return when (peek()) {
-                'n' -> { pos += 4; LLSD.Undefined }
-                't' -> { pos += 4; LLSD.LLSDBoolean(true) }
-                'f' -> { pos += 5; LLSD.LLSDBoolean(false) }
+                'n' -> {
+                    pos += 4
+                    LLSD.Undefined
+                }
+                't' -> {
+                    pos += 4
+                    LLSD.LLSDBoolean(true)
+                }
+                'f' -> {
+                    pos += 5
+                    LLSD.LLSDBoolean(false)
+                }
                 '"' -> LLSD.LLSDString(parseString())
                 '{' -> parseObject()
                 '[' -> parseJSONArray()
@@ -822,10 +954,11 @@ object LLSDSerialize {
             if (peek() == '-') pos++
             while (pos < text.length && (text[pos].isDigit() || text[pos] in ".eE+-")) pos++
             val token = text.substring(start, pos)
-            return if ('.' in token || 'e' in token || 'E' in token)
+            return if ('.' in token || 'e' in token || 'E' in token) {
                 LLSD.LLSDReal(token.toDoubleOrNull() ?: 0.0)
-            else
+            } else {
                 LLSD.LLSDInteger(token.toIntOrNull() ?: 0)
+            }
         }
 
         private fun parseObject(): LLSD {
@@ -835,9 +968,13 @@ object LLSDSerialize {
             while (pos < text.length && peek() != '}') {
                 skipWs()
                 val key = parseString()
-                skipWs(); if (peek() == ':') consume(); skipWs()
+                skipWs()
+                if (peek() == ':') consume()
+                skipWs()
                 map[key] = parseValue()
-                skipWs(); if (peek() == ',') consume(); skipWs()
+                skipWs()
+                if (peek() == ',') consume()
+                skipWs()
             }
             if (pos < text.length) consume()
             return LLSD.LLSDMap(map)

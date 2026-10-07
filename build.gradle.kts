@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.1.0"
     `maven-publish`
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
 }
 
 group = "org.llsd"

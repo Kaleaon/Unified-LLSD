@@ -2,35 +2,29 @@
 #ifndef UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 #define UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 
-#include <cstdint>
 #include <array>
+#include <cstdint>
 #include <string>
 
 namespace UnifiedLLSD {
 
-enum class DetailLevel : uint8_t {
-    Highest = 0,
-    High = 1,
-    Medium = 2,
-    Low = 3,
-    Lowest = 4
-};
+enum class DetailLevel : uint8_t { Highest = 0, High = 1, Medium = 2, Low = 3, Lowest = 4 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
 constexpr uint8_t JOINT_SENTINEL = 0xFF;
 
-inline const char* GetLodKey(DetailLevel lod) {
+inline const char *GetLodKey(DetailLevel lod) {
     switch (lod) {
-        case DetailLevel::Highest:
-        case DetailLevel::High:
-            return "high_lod";
-        case DetailLevel::Medium:
-            return "medium_lod";
-        case DetailLevel::Low:
-            return "low_lod";
-        case DetailLevel::Lowest:
-        default:
-            return "lowest_lod";
+    case DetailLevel::Highest:
+    case DetailLevel::High:
+        return "high_lod";
+    case DetailLevel::Medium:
+        return "medium_lod";
+    case DetailLevel::Low:
+        return "low_lod";
+    case DetailLevel::Lowest:
+    default:
+        return "lowest_lod";
     }
 }
 
@@ -42,11 +36,11 @@ struct TextureTransformAdapter {
     float offsetY = 0.0f;
 
     std::array<float, 8> GetPacked() const {
-        return { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
+        return {scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f};
     }
 
     std::array<float, 5> GetPackedTight() const {
-        return { scaleX, scaleY, rotation, offsetX, offsetY };
+        return {scaleX, scaleY, rotation, offsetX, offsetY};
     }
 };
 
