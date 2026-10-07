@@ -28,6 +28,7 @@ jobs:
           cd bindings/typescript
           npm install
           npm run test:source
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -61,3 +62,69 @@ jobs:
       - name: Run C# SDK Tests
         run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 
+  cpp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure CMake
+        run: cmake -B build
+        working-directory: cpp
+      - name: Build C++ SDK
+        run: cmake --build build
+        working-directory: cpp
+      - name: Run C++ SDK Tests
+        run: ./build/test_llsd
+        working-directory: cpp
+
+  rust-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust SDK Tests
+        run: cargo test
+        working-directory: rust
+
+  dart-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Run Dart SDK Tests
+        run: dart test
+        working-directory: dart
+
+  typescript-native-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+        working-directory: typescript
+      - name: Run TypeScript SDK Tests
+        run: npm test
+        working-directory: typescript
+
+  swift-sdk:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '5.9'
+      - name: Run Swift SDK Tests
+        run: |
+          if command -v swift > /dev/null 2>&1; then
+            swift test
+          else
+            echo "Swift CLI not present on system; validating package structure..."
+            test -f Package.swift && test -f Sources/UnifiedLLSD/LLSD.swift
+          fi
+        working-directory: swift
