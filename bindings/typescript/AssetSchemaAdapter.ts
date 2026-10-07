@@ -55,13 +55,6 @@ export class TextureTransformAdapter {
             this.offsetX, this.offsetY, 0.0, 0.0
         ]);
     }
-
-    public getPackedTight(): Float32Array {
-        return new Float32Array([
-            this.scaleX, this.scaleY, this.rotation,
-            this.offsetX, this.offsetY
-        ]);
-    }
 }
 
 export interface Vector2 {

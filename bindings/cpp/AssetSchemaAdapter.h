@@ -44,10 +44,6 @@ struct TextureTransformAdapter {
     std::array<float, 8> GetPacked() const {
         return { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
     }
-
-    std::array<float, 5> GetPackedTight() const {
-        return { scaleX, scaleY, rotation, offsetX, offsetY };
-    }
 };
 
 } // namespace UnifiedLLSD

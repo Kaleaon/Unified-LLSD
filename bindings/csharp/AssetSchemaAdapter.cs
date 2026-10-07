@@ -47,10 +47,5 @@ namespace Linkpoint.LLSD.Schema
         {
             return new float[] { ScaleX, ScaleY, Rotation, 0.0f, OffsetX, OffsetY, 0.0f, 0.0f };
         }
-
-        public float[] GetPackedTight()
-        {
-            return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
-        }
     }
 }
