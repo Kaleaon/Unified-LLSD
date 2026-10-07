@@ -1,33 +1,35 @@
 export class LLDate {
-  public readonly secondsSinceEpoch: number;
+    public readonly date: Date;
 
-  public static readonly nullDate = new LLDate(0);
+    public static readonly nullDate = new LLDate(0);
 
-  constructor(secondsOrIso?: number | string) {
-    if (typeof secondsOrIso === 'number') {
-      this.secondsSinceEpoch = secondsOrIso;
-    } else if (typeof secondsOrIso === 'string' && secondsOrIso.length > 0) {
-      const dt = new Date(secondsOrIso);
-      this.secondsSinceEpoch = isNaN(dt.getTime()) ? 0 : dt.getTime() / 1000.0;
-    } else {
-      this.secondsSinceEpoch = 0;
+    constructor(dateInput?: Date | string | number) {
+        if (dateInput instanceof Date) {
+            this.date = dateInput;
+        } else if (typeof dateInput === 'number') {
+            this.date = new Date(dateInput * 1000);
+        } else if (typeof dateInput === 'string') {
+            this.date = new Date(dateInput);
+        } else {
+            this.date = new Date();
+        }
     }
-  }
 
-  public get isNull(): boolean {
-    return this.secondsSinceEpoch === 0;
-  }
+    public toISOString(): string {
+        return this.date.toISOString();
+    }
 
-  public get notNull(): boolean {
-    return !this.isNull;
-  }
+    public get secondsSinceEpoch(): number {
+        return this.date.getTime() / 1000.0;
+    }
 
-  public toISOString(): string {
-    const dt = new Date(this.secondsSinceEpoch * 1000.0);
-    return dt.toISOString();
-  }
+    public getSecondsSinceEpoch(): number {
+        return this.date.getTime() / 1000.0;
+    }
 
-  public toString(): string {
-    return this.toISOString();
-  }
+    public isNull(): boolean {
+        return this.date.getTime() === 0;
+    }
 }
+
+export { LLDate as LLSDDate };

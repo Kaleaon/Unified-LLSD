@@ -1,15 +1,18 @@
 {
-  "name": "unified-llsd",
+  "name": "@unified-llsd/typescript",
   "version": "1.0.0",
-  "description": "Zero-dependency idiomatic native TypeScript LLSD SDK library",
+  "description": "Canonical TypeScript Linden Lab Structured Data (LLSD) and 3D Asset Schema SDK Library for Second Life / OpenSim",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test dist/test/llsd.test.js"
+    "test": "tsc && node --test dist/test/*.test.js dist/test/tests/*.test.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "flatbuffers": "^25.9.23"
   }
 }
