@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "prepare": "tsc",
     "test": "tsc && node --test dist/test/*.test.js dist/test/tests/*.test.js"
   },
   "devDependencies": {

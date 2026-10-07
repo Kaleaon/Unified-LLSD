@@ -25,7 +25,11 @@ jobs:
           node-version: '20'
       - name: Run TypeScript Tests
         run: |
-          cd bindings/typescript
+          cd typescript
+          npm install
+          npm run build
+          npm test
+          cd ../bindings/typescript
           npm install
           npm run test:source
   build:
