@@ -32,9 +32,11 @@ It is wire-format compatible with canonical Linden Lab LLSD reference implementa
 ## Usage Example
 
 ```kotlin
-import com.firestorm.llcommon.LLSD
-import com.firestorm.llcommon.LLSDSerialize
-import com.firestorm.llcommon.LLUUID
+import com.unifiedllsd.core.LLSD
+import com.unifiedllsd.core.LLSDSerialize
+import com.unifiedllsd.core.LLUUID
+import com.unifiedllsd.network.Circuit
+import com.unifiedllsd.network.CapabilityClient
 
 // Create an LLSD Map
 val data = LLSD.map(
