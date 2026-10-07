@@ -94,8 +94,10 @@ class TestAssetSchemaConformance(unittest.TestCase):
 
     def test_typescript_bindings_exist(self):
         """Verify generated TypeScript bindings file and key schema constants."""
-        ts_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "typescript", "AssetSchemaAdapter.ts")
-        self.assertTrue(os.path.exists(ts_binding_path), "TypeScript bindings file must exist")
+        ts_binding_path = os.path.join(os.path.dirname(__file__), "..", "typescript", "src", "AssetSchemaAdapter.ts")
+        legacy_ts_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "typescript", "AssetSchemaAdapter.ts")
+        self.assertTrue(os.path.exists(ts_binding_path), "Canonical TypeScript bindings file must exist")
+        self.assertTrue(os.path.exists(legacy_ts_binding_path), "Legacy TypeScript re-export bindings file must exist")
 
         with open(ts_binding_path, "r") as f:
             content = f.read()
