@@ -1,7 +1,7 @@
 {
   "name": "@unified-llsd/viewer",
   "version": "1.0.0",
-  "description": "TypeScript Linden Lab Structured Data (LLSD) and 3D Asset Schema Viewer Library for Second Life / OpenSim",
+  "description": "Legacy re-export wrapper for @unified-llsd/typescript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,18 +9,9 @@
     "test": "node --test dist/tests/viewer.test.js",
     "test:source": "tsc && node --test dist/tests/viewer.test.js"
   },
-  "keywords": [
-    "llsd",
-    "secondlife",
-    "opensim",
-    "firestorm",
-    "gltf",
-    "pbr",
-    "mesh",
-    "rendering"
-  ],
-  "author": "Unified-LLSD Contributors",
-  "license": "LGPL-2.1-or-later",
+  "dependencies": {
+    "@unified-llsd/typescript": "file:../../typescript"
+  },
   "devDependencies": {
     "@types/node": "^22.20.5",
     "typescript": "^5.9.3"
