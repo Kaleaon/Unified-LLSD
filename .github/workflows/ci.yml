@@ -22,12 +22,24 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Run TypeScript Tests
         run: |
           cd bindings/typescript
           npm install
           npm run test:source
+
+  cpp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and Run C++ Tests
+        run: |
+          mkdir -p cpp/build
+          cd cpp/build
+          cmake ..
+          cmake --build .
+          ./test_llsd
   build:
     runs-on: ubuntu-latest
     steps:

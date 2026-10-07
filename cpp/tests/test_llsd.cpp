@@ -46,6 +46,49 @@ int main() {
     assert(backNotation["int"].asInteger64() == bigInt);
     assert(backNotation["str"].asString() == "hello world");
 
+    // Test 6: Base64 Decoding Tests & Edge Cases
+    std::string b64Xml1 = "<llsd><binary encoding=\"base64\">SGVsbG8gV29ybGQ=</binary></llsd>";
+    llsd::LLSD b64Sd1 = llsd::LLSDSerialize::fromXML(b64Xml1);
+    std::vector<uint8_t> b64Expected1 = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'};
+    assert(b64Sd1.asBinary() == b64Expected1);
+
+    std::string b64XmlPadding1 = "<llsd><binary encoding=\"base64\">SGVsbG8=</binary></llsd>";
+    llsd::LLSD b64SdPad1 = llsd::LLSDSerialize::fromXML(b64XmlPadding1);
+    std::vector<uint8_t> b64ExpectedPad1 = {'H', 'e', 'l', 'l', 'o'};
+    assert(b64SdPad1.asBinary() == b64ExpectedPad1);
+
+    std::string b64XmlPadding2 = "<llsd><binary encoding=\"base64\">UVQ=</binary></llsd>";
+    llsd::LLSD b64SdPad2 = llsd::LLSDSerialize::fromXML(b64XmlPadding2);
+    std::vector<uint8_t> b64ExpectedPad2 = {'Q', 'T'};
+    assert(b64SdPad2.asBinary() == b64ExpectedPad2);
+
+    std::string b64Notation = "b64\"SGVsbG8gV29ybGQ=\"";
+    llsd::LLSD b64SdNot = llsd::LLSDSerialize::fromNotation(b64Notation);
+    assert(b64SdNot.asBinary() == b64Expected1);
+
+    // Test 7: Hex (Base16) Decoding Tests & Edge Cases
+    std::string hexXmlLower = "<llsd><binary encoding=\"base16\">48656c6c6f20576f726c64</binary></llsd>";
+    llsd::LLSD hexSdLower = llsd::LLSDSerialize::fromXML(hexXmlLower);
+    assert(hexSdLower.asBinary() == b64Expected1);
+
+    std::string hexXmlUpper = "<llsd><binary encoding=\"base16\">DEADBEEF</binary></llsd>";
+    llsd::LLSD hexSdUpper = llsd::LLSDSerialize::fromXML(hexXmlUpper);
+    std::vector<uint8_t> hexExpectedUpper = {0xDE, 0xAD, 0xBE, 0xEF};
+    assert(hexSdUpper.asBinary() == hexExpectedUpper);
+
+    std::string hexXmlWhitespace = "<llsd><binary encoding=\"base16\"> 4865 6c6c\n6f20 576f\t726c64  </binary></llsd>";
+    llsd::LLSD hexSdWS = llsd::LLSDSerialize::fromXML(hexXmlWhitespace);
+    assert(hexSdWS.asBinary() == b64Expected1);
+
+    std::string hexNotation = "b16\"deadbeef\"";
+    llsd::LLSD hexSdNot = llsd::LLSDSerialize::fromNotation(hexNotation);
+    assert(hexSdNot.asBinary() == hexExpectedUpper);
+
+    std::string hexOddLength = "<llsd><binary encoding=\"base16\">41424</binary></llsd>";
+    llsd::LLSD hexSdOdd = llsd::LLSDSerialize::fromXML(hexOddLength);
+    std::vector<uint8_t> hexExpectedOdd = {'A', 'B', 0x04};
+    assert(hexSdOdd.asBinary() == hexExpectedOdd);
+
     std::cout << "All C++ LLSD Conformance Tests Passed!" << std::endl;
     return 0;
 }
