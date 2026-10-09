@@ -1,143 +1,63 @@
-import { LLSD, LLSDType } from './llsd.js';
-import { LLUUID } from './lluuid.js';
-import { LLDate } from './lldate.js';
-import { LLURI } from './lluri.js';
+import { LLSD } from './llsd.js';
+import { XmlCodec } from './xml_codec.js';
+import { BinaryCodec } from './binary_codec.js';
+import { NotationCodec } from './notation_codec.js';
 
 export class LLSDSerialize {
-  public static readonly binaryHeader = "<? llsd/binary ?>\n";
-  public static readonly notationHeader = "<? llsd/notation ?>\n";
-  public static readonly xmlHeader = "<?xml version=\"1.0\" ?>\n";
+  public static readonly binaryHeader = BinaryCodec.binaryHeader;
+  public static readonly notationHeader = NotationCodec.notationHeader;
+  public static readonly xmlHeader = XmlCodec.xmlHeader;
 
   // --- XML ---
   public static toXML(sd: LLSD, withDeclaration = false): string {
-    let xml = withDeclaration ? this.xmlHeader : '';
-    xml += '<llsd>';
-    xml += this.writeXmlElement(sd);
-    xml += '</llsd>';
-    return xml;
-  }
-
-  private static writeXmlElement(sd: LLSD): string {
-    switch (sd.type) {
-      case LLSDType.Undefined: return '<undef/>';
-      case LLSDType.Boolean: return `<boolean>${sd.asBoolean() ? 'true' : 'false'}</boolean>`;
-      case LLSDType.Integer: return `<integer>${sd.asBigInt()}</integer>`;
-      case LLSDType.Real:
-        const r = sd.asReal();
-        if (isNaN(r)) return '<real>nan</real>';
-        if (!isFinite(r)) return `<real>${r > 0 ? 'inf' : '-inf'}</real>`;
-        return `<real>${r}</real>`;
-      case LLSDType.String:
-        const s = sd.asString();
-        return s ? `<string>${this.xmlEscape(s)}</string>` : '<string/>';
-      case LLSDType.UUID:
-        const u = sd.asUUID();
-        return u.isNull ? '<uuid/>' : `<uuid>${u.toString()}</uuid>`;
-      case LLSDType.Date: return `<date>${sd.asDate().toISOString()}</date>`;
-      case LLSDType.URI: return `<uri>${this.xmlEscape(sd.asURI().asString())}</uri>`;
-      case LLSDType.Binary:
-        return `<binary encoding="base64">${Buffer.from(sd.asBinary()).toString('base64')}</binary>`;
-      case LLSDType.Map:
-        return '<map></map>';
-      case LLSDType.Array:
-        return '<array></array>';
-    }
-  }
-
-  private static xmlEscape(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return XmlCodec.toXML(sd, withDeclaration);
   }
 
   public static fromXML(xml: string): LLSD {
-    if (!xml) return LLSD.undefined;
-    const clean = xml.trim();
-    const intMatch = clean.match(/<integer>(-?\d+)<\/integer>/);
-    if (intMatch) return new LLSD(BigInt(intMatch[1]));
-    const strMatch = clean.match(/<string>(.*?)<\/string>/);
-    if (strMatch) return new LLSD(strMatch[1]);
-    const boolMatch = clean.match(/<boolean>(.*?)<\/boolean>/);
-    if (boolMatch) return new LLSD(boolMatch[1] === 'true' || boolMatch[1] === '1');
-    return LLSD.undefined;
+    return XmlCodec.fromXML(xml);
   }
 
   // --- Binary ---
   public static toBinary(sd: LLSD): Uint8Array {
-    const chunks: Uint8Array[] = [];
-    this.writeBinary(chunks, sd);
-    let totalLen = 0;
-    for (const c of chunks) totalLen += c.length;
-    const res = new Uint8Array(totalLen);
-    let offset = 0;
-    for (const c of chunks) {
-      res.set(c, offset);
-      offset += c.length;
-    }
-    return res;
-  }
-
-  private static writeBinary(chunks: Uint8Array[], sd: LLSD): void {
-    switch (sd.type) {
-      case LLSDType.Undefined: chunks.push(new Uint8Array([33])); break; // '!'
-      case LLSDType.Boolean: chunks.push(new Uint8Array([sd.asBoolean() ? 49 : 48])); break; // '1' or '0'
-      case LLSDType.Integer: {
-        const buf = new Uint8Array(5);
-        buf[0] = 105; // 'i'
-        const dv = new DataView(buf.buffer, 1, 4);
-        dv.setInt32(0, sd.asInteger(), false); // Big endian
-        chunks.push(buf);
-        break;
-      }
-      case LLSDType.Real: {
-        const buf = new Uint8Array(9);
-        buf[0] = 114; // 'r'
-        const dv = new DataView(buf.buffer, 1, 8);
-        dv.setFloat64(0, sd.asReal(), false); // Big endian
-        chunks.push(buf);
-        break;
-      }
-      case LLSDType.Date: {
-        const buf = new Uint8Array(9);
-        buf[0] = 100; // 'd'
-        const dv = new DataView(buf.buffer, 1, 8);
-        dv.setFloat64(0, sd.asDate().secondsSinceEpoch, true); // Date is LE!
-        chunks.push(buf);
-        break;
-      }
-      default: chunks.push(new Uint8Array([33])); break;
-    }
+    return BinaryCodec.toBinary(sd);
   }
 
   public static fromBinary(bytes: Uint8Array): LLSD {
-    if (bytes.length === 0) return LLSD.undefined;
-    const tag = bytes[0];
-    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (tag === 33) return LLSD.undefined;
-    if (tag === 49) return new LLSD(true);
-    if (tag === 48) return new LLSD(false);
-    if (tag === 105) return new LLSD(BigInt(dv.getInt32(1, false)));
-    if (tag === 114) return new LLSD(dv.getFloat64(1, false));
-    if (tag === 100) return new LLSD(new LLDate(dv.getFloat64(1, true))); // Date is LE!
-    return LLSD.undefined;
+    return BinaryCodec.fromBinary(bytes);
   }
 
   // --- Notation ---
   public static toNotation(sd: LLSD): string {
-    switch (sd.type) {
-      case LLSDType.Undefined: return '!';
-      case LLSDType.Boolean: return sd.asBoolean() ? 'true' : 'false';
-      case LLSDType.Integer: return `i${sd.asBigInt()}`;
-      case LLSDType.Real: return `r${sd.asReal()}`;
-      case LLSDType.String: return `'${sd.asString()}'`;
-      default: return '!';
-    }
+    return NotationCodec.toNotation(sd);
   }
 
   public static fromNotation(text: string): LLSD {
-    const clean = text.trim();
-    if (clean === '!') return LLSD.undefined;
-    if (clean.startsWith('i')) return new LLSD(BigInt(clean.substring(1)));
-    if (clean.startsWith('r')) return new LLSD(parseFloat(clean.substring(1)));
-    if (clean.startsWith("'") && clean.endsWith("'")) return new LLSD(clean.substring(1, clean.length - 1));
+    return NotationCodec.fromNotation(text);
+  }
+
+  // --- Auto-detect Parse ---
+  public static parse(data: Uint8Array | string): LLSD {
+    if (data instanceof Uint8Array) {
+      if (data.length >= 2 && data[0] === 60 && data[1] === 63) { // '<?'
+        const headerStr = Buffer.from(data.subarray(0, Math.min(64, data.length))).toString('ascii');
+        if (headerStr.includes('llsd/binary')) {
+          return BinaryCodec.fromBinary(data);
+        }
+        if (headerStr.includes('llsd/notation')) {
+          return NotationCodec.fromNotation(Buffer.from(data).toString('utf-8'));
+        }
+        if (headerStr.includes('xml') || headerStr.includes('llsd')) {
+          return XmlCodec.fromXML(Buffer.from(data).toString('utf-8'));
+        }
+      }
+      return BinaryCodec.fromBinary(data);
+    } else if (typeof data === 'string') {
+      const trimmed = data.trimStart();
+      if (trimmed.startsWith('<')) {
+        return XmlCodec.fromXML(data);
+      }
+      return NotationCodec.fromNotation(data);
+    }
     return LLSD.undefined;
   }
 }
