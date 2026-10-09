@@ -61,3 +61,59 @@ jobs:
       - name: Run C# SDK Tests
         run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 
+  cpp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
+      - name: Build C++ SDK
+        run: |
+          cd cpp
+          cmake -B build
+          cmake --build build
+      - name: Run C++ SDK Tests
+        run: |
+          cd cpp
+          ./build/test_llsd
+
+  rust-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust SDK Tests
+        run: |
+          cd rust
+          cargo test
+
+  dart-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Run Dart SDK Tests
+        run: |
+          cd dart
+          dart test
+
+  swift-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '5.10'
+      - name: Run Swift SDK Tests
+        run: |
+          cd swift
+          swift test
+
+
