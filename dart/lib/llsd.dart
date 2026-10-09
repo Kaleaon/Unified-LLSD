@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'lluuid.dart';
 import 'lldate.dart';
 import 'lluri.dart';
+export 'asset_schema_adapter.dart';
 
 enum LLSDType {
   undefined,

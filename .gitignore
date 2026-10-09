@@ -24,3 +24,7 @@ target/
 *.a
 *.so
 *.dylib
+.dart_tool/
+__pycache__/
+*.pyc
+Unified-LLSD

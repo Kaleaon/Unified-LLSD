@@ -105,5 +105,44 @@ class TestAssetSchemaConformance(unittest.TestCase):
         self.assertIn("class TextureTransformAdapter", content)
         self.assertIn("getLodKey", content)
 
+    def test_rust_bindings_exist(self):
+        """Verify generated Rust bindings file and key schema constants."""
+        rust_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "rust", "asset_schema_adapter.rs")
+        self.assertTrue(os.path.exists(rust_binding_path), "Rust bindings file must exist")
+
+        with open(rust_binding_path, "r") as f:
+            content = f.read()
+
+        self.assertIn("MAX_RIGGED_MESH_JOINTS: u32 = 256", content)
+        self.assertIn("JOINT_SENTINEL: u8 = 0xFF", content)
+        self.assertIn("struct TextureTransformAdapter", content)
+        self.assertIn("get_lod_key", content)
+
+    def test_swift_bindings_exist(self):
+        """Verify generated Swift bindings file and key schema constants."""
+        swift_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "swift", "AssetSchemaAdapter.swift")
+        self.assertTrue(os.path.exists(swift_binding_path), "Swift bindings file must exist")
+
+        with open(swift_binding_path, "r") as f:
+            content = f.read()
+
+        self.assertIn("MAX_RIGGED_MESH_JOINTS: UInt32 = 256", content)
+        self.assertIn("JOINT_SENTINEL: UInt8 = 0xFF", content)
+        self.assertIn("struct TextureTransformAdapter", content)
+        self.assertIn("getLodKey", content)
+
+    def test_dart_bindings_exist(self):
+        """Verify generated Dart bindings file and key schema constants."""
+        dart_binding_path = os.path.join(os.path.dirname(__file__), "..", "bindings", "dart", "asset_schema_adapter.dart")
+        self.assertTrue(os.path.exists(dart_binding_path), "Dart bindings file must exist")
+
+        with open(dart_binding_path, "r") as f:
+            content = f.read()
+
+        self.assertIn("MAX_RIGGED_MESH_JOINTS = 256", content)
+        self.assertIn("JOINT_SENTINEL = 0xFF", content)
+        self.assertIn("class TextureTransformAdapter", content)
+        self.assertIn("getLodKey", content)
+
 if __name__ == '__main__':
     unittest.main()
