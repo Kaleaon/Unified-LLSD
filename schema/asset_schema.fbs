@@ -65,6 +65,22 @@ struct JointInfluence {
   weight: float;
 }
 
+table LodThresholds {
+  high_threshold: float = 200.0;
+  medium_threshold: float = 80.0;
+  low_threshold: float = 20.0;
+  lowest_threshold: float = 4.0;
+}
+
+table SubmeshMaterial {
+  material_index: uint;
+  indices: [uint];
+  positions: [Vector3];
+  normals: [Vector3];
+  tex_coords: [Vector2];
+  joint_influences: [JointInfluence];
+}
+
 table MeshBlock {
   lod: DetailLevel;
   lod_key: string;
@@ -72,6 +88,15 @@ table MeshBlock {
   normals: [Vector3];
   tex_coords: [Vector2];
   joint_influences: [JointInfluence];
+  submesh_materials: [SubmeshMaterial];
+  thresholds: LodThresholds;
+}
+
+table PreprocessedMeshPayload {
+  format: string;
+  selected_lod: string;
+  lod_thresholds: LodThresholds;
+  submeshes: [SubmeshMaterial];
 }
 
 table AssetMetadata {

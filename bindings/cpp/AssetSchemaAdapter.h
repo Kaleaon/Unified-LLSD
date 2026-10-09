@@ -34,6 +34,17 @@ inline const char* GetLodKey(DetailLevel lod) {
     }
 }
 
+struct LodThresholdsAdapter {
+    float highThreshold = 200.0f;
+    float mediumThreshold = 80.0f;
+    float lowThreshold = 20.0f;
+    float lowestThreshold = 4.0f;
+};
+
+struct SubmeshMaterialAdapter {
+    uint32_t materialIndex = 0;
+};
+
 struct TextureTransformAdapter {
     float scaleX = 1.0f;
     float scaleY = 1.0f;

@@ -95,6 +95,36 @@ test('LLSD Multi-Format Serialization & Auto-Detect', () => {
     assert.equal(autoParsed.get('balance').asInteger(), 250);
 });
 
+test('MeshAssetDecoder Preprocessed Payload Parsing', () => {
+    const mockPayload = {
+        format: 'unified-llsd-mesh-v1',
+        selected_lod: 'high_lod',
+        lod_thresholds: {
+            high_threshold: 200.0,
+            medium_threshold: 80.0,
+            low_threshold: 20.0,
+            lowest_threshold: 4.0
+        },
+        submeshes: [
+            {
+                material_index: 0,
+                indices: [0, 1, 2],
+                positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+                normals: [0, 0, 1, 0, 0, 1, 0, 0, 1],
+                tex_coords: [0, 0, 1, 0, 0, 1]
+            }
+        ]
+    };
+
+    const parsed = MeshAssetDecoder.parsePreprocessedPayload(mockPayload);
+    assert.equal(parsed.format, 'unified-llsd-mesh-v1');
+    assert.equal(parsed.selectedLod, 'high_lod');
+    assert.equal(parsed.lodThresholds.highThreshold, 200.0);
+    assert.equal(parsed.submeshes.length, 1);
+    assert.equal(parsed.submeshes[0].materialIndex, 0);
+    assert.deepEqual(parsed.submeshes[0].indices, [0, 1, 2]);
+});
+
 test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     // Construct mock binary joint influence buffer with extended skeleton joint (>163) and 0xFF sentinel
     const mockBuffer = new Uint8Array([

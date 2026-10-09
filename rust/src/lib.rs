@@ -3,6 +3,7 @@ pub mod uuid;
 pub mod date;
 pub mod uri;
 pub mod serialize;
+pub mod mesh;
 
 pub use llsd::Llsd;
 pub use uuid::LlUuid;
