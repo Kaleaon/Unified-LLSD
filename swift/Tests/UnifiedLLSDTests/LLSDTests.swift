@@ -22,4 +22,10 @@ final class LLSDTests: XCTestCase {
         let back = LLSDSerialize.fromNotation(notation)
         XCTAssertEqual(back.asInt64(), 42)
     }
+
+    static var allTests = [
+        ("test64BitIntegerHandling", test64BitIntegerHandling),
+        ("testBinaryDateLittleEndian", testBinaryDateLittleEndian),
+        ("testNotationRoundtrip", testNotationRoundtrip),
+    ]
 }
