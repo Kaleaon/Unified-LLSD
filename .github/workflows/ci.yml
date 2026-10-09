@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Run TypeScript Tests
         run: |
           cd bindings/typescript
@@ -108,12 +108,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
+        uses: swift-actions/setup-swift@v3
         with:
           swift-version: '5.10'
       - name: Run Swift SDK Tests
         run: |
           cd swift
-          swift test
+          swift test --enable-test-discovery
 
 
