@@ -24,3 +24,5 @@ target/
 *.a
 *.so
 *.dylib
+.build/
+.dart_tool/

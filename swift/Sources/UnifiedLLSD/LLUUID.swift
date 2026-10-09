@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LLUUID: Equatable, Hashable, CustomStringConvertible {
+public struct LLUUID: Equatable, Hashable, CustomStringConvertible, Codable {
     public var bytes: [UInt8]
 
     public static let null = LLUUID(bytes: [UInt8](repeating: 0, count: 16))
@@ -29,6 +29,21 @@ public struct LLUUID: Equatable, Hashable, CustomStringConvertible {
             index = nextIndex
         }
         self.bytes = result
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let str = try container.decode(String.self)
+        if let uuid = LLUUID(string: str) {
+            self = uuid
+        } else {
+            self = LLUUID.null
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(description)
     }
 
     public var isNull: Bool {
