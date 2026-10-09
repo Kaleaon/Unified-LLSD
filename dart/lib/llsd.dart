@@ -112,6 +112,16 @@ class LLSD {
     return Uint8List(0);
   }
 
+  Map<String, LLSD> asMap() {
+    if (type == LLSDType.map) return _value as Map<String, LLSD>;
+    return {};
+  }
+
+  List<LLSD> asArray() {
+    if (type == LLSDType.array) return _value as List<LLSD>;
+    return [];
+  }
+
   int get length {
     if (type == LLSDType.map) return (_value as Map<String, LLSD>).length;
     if (type == LLSDType.array) return (_value as List<LLSD>).length;
