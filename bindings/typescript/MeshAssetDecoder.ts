@@ -79,12 +79,7 @@ export class MeshAssetDecoder {
         doubleSided: boolean = false,
         transforms: TextureTransformAdapter[] = []
     ): GLTFMaterialAdapter {
-        return {
-            alphaMode,
-            alphaCutoff,
-            doubleSided,
-            transforms
-        };
+        return new GLTFMaterialAdapter(alphaMode, alphaCutoff, doubleSided, transforms);
     }
 
     /**
