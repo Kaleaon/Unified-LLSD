@@ -32,6 +32,7 @@ echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""
