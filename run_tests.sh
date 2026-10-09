@@ -5,7 +5,7 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-ROOT_DIR="/app/Unified-LLSD"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
@@ -24,7 +24,15 @@ echo "✓ Kotlin Native SDK passed!"
 echo ""
 echo "[3/7] Testing C# Native SDK..."
 cd "$ROOT_DIR/csharp"
-/usr/lib/dotnet/sdk/10.0.107/Roslyn/bincore/csc -target:exe -out:LLSDTests.exe *.cs -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Runtime.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Console.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.ReaderWriter.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Linq.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Collections.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Memory.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Security.Cryptography.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.ComponentModel.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.XmlSerializer.dll > /dev/null
+CSC_BIN=$(ls /usr/lib/dotnet/sdk/*/Roslyn/bincore/csc /usr/share/dotnet/sdk/*/Roslyn/bincore/csc 2>/dev/null | sort -V | tail -n 1)
+if [ -z "$CSC_BIN" ]; then
+    CSC_BIN=$(which csc 2>/dev/null || true)
+fi
+REF_DIR=$(ls -d /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net8.0 /usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net8.0 2>/dev/null | sort -V | tail -n 1)
+if [ -z "$REF_DIR" ]; then
+    REF_DIR=$(ls -d /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net* /usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net* 2>/dev/null | sort -V | tail -n 1)
+fi
+"$CSC_BIN" -target:exe -out:LLSDTests.exe *.cs -reference:"$REF_DIR/System.Runtime.dll" -reference:"$REF_DIR/System.Console.dll" -reference:"$REF_DIR/System.Xml.ReaderWriter.dll" -reference:"$REF_DIR/System.Linq.dll" -reference:"$REF_DIR/System.Collections.dll" -reference:"$REF_DIR/System.Memory.dll" -reference:"$REF_DIR/System.Security.Cryptography.dll" -reference:"$REF_DIR/System.ComponentModel.dll" -reference:"$REF_DIR/System.Xml.XmlSerializer.dll" > /dev/null
 dotnet LLSDTests.exe
 echo "✓ C# Native SDK passed!"
 
@@ -43,6 +51,9 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+if [ ! -d "node_modules" ]; then
+    npm install > /dev/null
+fi
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 
