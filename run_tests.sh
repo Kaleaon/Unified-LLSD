@@ -44,6 +44,7 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+npm install > /dev/null 2>&1
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 
