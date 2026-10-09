@@ -5,7 +5,7 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-ROOT_DIR="/app/Unified-LLSD"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
@@ -32,6 +32,7 @@ echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""
@@ -43,6 +44,7 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+npm install > /dev/null 2>&1
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 
