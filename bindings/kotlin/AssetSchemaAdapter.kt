@@ -36,3 +36,18 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+data class LodThresholdsAdapter(
+    val highThreshold: Float = 200.0f,
+    val mediumThreshold: Float = 80.0f,
+    val lowThreshold: Float = 20.0f,
+    val lowestThreshold: Float = 4.0f
+)
+
+data class SubmeshMaterialAdapter(
+    val materialIndex: Int = 0,
+    val indices: IntArray = intArrayOf(),
+    val positions: FloatArray = floatArrayOf(),
+    val normals: FloatArray = floatArrayOf(),
+    val texCoords: FloatArray = floatArrayOf()
+)

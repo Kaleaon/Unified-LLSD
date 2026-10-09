@@ -87,6 +87,36 @@ export interface GLTFMaterialAdapter {
     transforms: TextureTransformAdapter[];
 }
 
+export interface LodThresholdsAdapter {
+    highThreshold: number;
+    mediumThreshold: number;
+    lowThreshold: number;
+    lowestThreshold: number;
+}
+
+export interface SubmeshMaterialAdapter {
+    materialIndex: number;
+    indices: number[];
+    positions: number[] | Vector3[];
+    normals: number[] | Vector3[];
+    texCoords: number[] | Vector2[];
+    jointInfluences?: JointInfluence[];
+    joints?: number[];
+    jointWeights?: number[];
+}
+
+export interface PreprocessedMeshPayloadAdapter {
+    format: string;
+    selectedLod: string;
+    lodThresholds: LodThresholdsAdapter;
+    submeshes: SubmeshMaterialAdapter[];
+    parts?: SubmeshMaterialAdapter[];
+    lods?: Record<string, SubmeshMaterialAdapter[]>;
+    skin?: any;
+    physics?: any;
+    metadata?: any;
+}
+
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
@@ -94,4 +124,6 @@ export interface MeshBlockAdapter {
     normals: Vector3[];
     texCoords: Vector2[];
     jointInfluences: JointInfluence[];
+    submeshMaterials?: SubmeshMaterialAdapter[];
+    thresholds?: LodThresholdsAdapter;
 }

@@ -105,5 +105,21 @@ class TestAssetSchemaConformance(unittest.TestCase):
         self.assertIn("class TextureTransformAdapter", content)
         self.assertIn("getLodKey", content)
 
+    def test_mesh_preprocessor_tool(self):
+        """Verify preprocess_mesh.py converts raw binary mesh into normalized pre-partitioned geometry payload."""
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
+        import preprocess_mesh
+
+        raw_bytes = b"Linden Binary Mesh 1.0" + b"\x00" * 41 + struct.pack('<H', 3) + b"\x00" * 10
+        payload = preprocess_mesh.preprocess_llmesh_bytes(raw_bytes)
+
+        self.assertEqual(payload["format"], "unified-llsd-mesh-v1")
+        self.assertEqual(payload["selected_lod"], "high_lod")
+        self.assertIn("lod_thresholds", payload)
+        self.assertEqual(payload["lod_thresholds"]["high_threshold"], 200.0)
+        self.assertEqual(len(payload["submeshes"]), 1)
+        self.assertEqual(payload["submeshes"][0]["material_index"], 0)
+        self.assertLess(payload["metadata"]["processing_time_ms"], 50.0)
+
 if __name__ == '__main__':
     unittest.main()

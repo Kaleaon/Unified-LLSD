@@ -44,6 +44,17 @@ inline const char* GetLodKey(DetailLevel lod) {
     }
 }
 
+struct LodThresholdsAdapter {
+    float highThreshold = 200.0f;
+    float mediumThreshold = 80.0f;
+    float lowThreshold = 20.0f;
+    float lowestThreshold = 4.0f;
+};
+
+struct SubmeshMaterialAdapter {
+    uint32_t materialIndex = 0;
+};
+
 struct TextureTransformAdapter {
     float scaleX = 1.0f;
     float scaleY = 1.0f;
@@ -107,6 +118,21 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+data class LodThresholdsAdapter(
+    val highThreshold: Float = 200.0f,
+    val mediumThreshold: Float = 80.0f,
+    val lowThreshold: Float = 20.0f,
+    val lowestThreshold: Float = 4.0f
+)
+
+data class SubmeshMaterialAdapter(
+    val materialIndex: Int = 0,
+    val indices: IntArray = intArrayOf(),
+    val positions: FloatArray = floatArrayOf(),
+    val normals: FloatArray = floatArrayOf(),
+    val texCoords: FloatArray = floatArrayOf()
+)
 """
     os.makedirs("/app/Unified-LLSD/bindings/kotlin", exist_ok=True)
     with open("/app/Unified-LLSD/bindings/kotlin/AssetSchemaAdapter.kt", "w") as f:
@@ -319,6 +345,36 @@ export interface GLTFMaterialAdapter {
     transforms: TextureTransformAdapter[];
 }
 
+export interface LodThresholdsAdapter {
+    highThreshold: number;
+    mediumThreshold: number;
+    lowThreshold: number;
+    lowestThreshold: number;
+}
+
+export interface SubmeshMaterialAdapter {
+    materialIndex: number;
+    indices: number[];
+    positions: number[] | Vector3[];
+    normals: number[] | Vector3[];
+    texCoords: number[] | Vector2[];
+    jointInfluences?: JointInfluence[];
+    joints?: number[];
+    jointWeights?: number[];
+}
+
+export interface PreprocessedMeshPayloadAdapter {
+    format: string;
+    selectedLod: string;
+    lodThresholds: LodThresholdsAdapter;
+    submeshes: SubmeshMaterialAdapter[];
+    parts?: SubmeshMaterialAdapter[];
+    lods?: Record<string, SubmeshMaterialAdapter[]>;
+    skin?: any;
+    physics?: any;
+    metadata?: any;
+}
+
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
@@ -326,6 +382,8 @@ export interface MeshBlockAdapter {
     normals: Vector3[];
     texCoords: Vector2[];
     jointInfluences: JointInfluence[];
+    submeshMaterials?: SubmeshMaterialAdapter[];
+    thresholds?: LodThresholdsAdapter;
 }
 """
     os.makedirs("/app/Unified-LLSD/bindings/typescript", exist_ok=True)

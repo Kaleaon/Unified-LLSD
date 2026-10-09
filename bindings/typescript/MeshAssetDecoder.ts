@@ -11,10 +11,56 @@ import {
     Vector3,
     MeshBlockAdapter,
     GLTFMaterialAdapter,
-    AlphaMode
+    AlphaMode,
+    LodThresholdsAdapter,
+    SubmeshMaterialAdapter,
+    PreprocessedMeshPayloadAdapter
 } from './AssetSchemaAdapter.js';
 
 export class MeshAssetDecoder {
+    /**
+     * Parse pre-processed Unified-LLSD payload into ready-to-render submesh material buffers and LOD distance thresholds.
+     */
+    public static parsePreprocessedPayload(payload: any): PreprocessedMeshPayloadAdapter {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid preprocessed payload object');
+        }
+
+        const format = payload.format || 'unified-llsd-mesh-v1';
+        const selectedLod = payload.selected_lod || payload.selectedLod || 'high_lod';
+
+        const rawThresholds = payload.lod_thresholds || payload.lodThresholds || {};
+        const lodThresholds: LodThresholdsAdapter = {
+            highThreshold: Number(rawThresholds.high_threshold ?? rawThresholds.highThreshold ?? 200.0),
+            mediumThreshold: Number(rawThresholds.medium_threshold ?? rawThresholds.mediumThreshold ?? 80.0),
+            lowThreshold: Number(rawThresholds.low_threshold ?? rawThresholds.lowThreshold ?? 20.0),
+            lowestThreshold: Number(rawThresholds.lowest_threshold ?? rawThresholds.lowestThreshold ?? 4.0),
+        };
+
+        const rawSubmeshes = payload.submeshes || payload.parts || [];
+        const submeshes: SubmeshMaterialAdapter[] = rawSubmeshes.map((sub: any, idx: number) => ({
+            materialIndex: Number(sub.material_index ?? sub.materialIndex ?? idx),
+            indices: Array.isArray(sub.indices) ? sub.indices.map(Number) : [],
+            positions: Array.isArray(sub.positions) ? sub.positions : (Array.isArray(sub.vertices) ? sub.vertices : []),
+            normals: Array.isArray(sub.normals) ? sub.normals : [],
+            texCoords: Array.isArray(sub.tex_coords ?? sub.texCoords) ? (sub.tex_coords ?? sub.texCoords) : [],
+            jointInfluences: sub.jointInfluences || [],
+            joints: sub.joints || [],
+            jointWeights: sub.jointWeights || sub.joint_weights || []
+        }));
+
+        return {
+            format,
+            selectedLod,
+            lodThresholds,
+            submeshes,
+            parts: submeshes,
+            lods: payload.lods || { [selectedLod]: submeshes },
+            skin: payload.skin || null,
+            physics: payload.physics || null,
+            metadata: payload.metadata || null
+        };
+    }
     /**
      * Decode rigged mesh joint influences from binary data.
      * Supports extended skeletons with up to 256 joints (0..255) and 0xFF sentinel byte.
