@@ -104,9 +104,7 @@ jobs:
           dart test
 
   swift-sdk:
-    runs-on: ubuntu-latest
-    container:
-      image: swift:5.10
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run Swift SDK Tests
