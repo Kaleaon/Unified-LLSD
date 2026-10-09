@@ -93,11 +93,19 @@ public struct LLSDSerialize {
         if tag == 49 { return .boolean(true) }
         if tag == 48 { return .boolean(false) }
         if tag == 105 && data.count >= 5 {
-            let be32 = data.subdata(in: 1..<5).withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }.bigEndian
+            let be32 = data.subdata(in: 1..<5).withUnsafeBytes { ptr -> Int32 in
+                var val: Int32 = 0
+                memcpy(&val, ptr.baseAddress!, 4)
+                return val
+            }.bigEndian
             return .integer(Int64(be32))
         }
         if tag == 100 && data.count >= 9 {
-            let le64 = data.subdata(in: 1..<9).withUnsafeBytes { $0.loadUnaligned(as: UInt64.self) }.littleEndian
+            let le64 = data.subdata(in: 1..<9).withUnsafeBytes { ptr -> UInt64 in
+                var val: UInt64 = 0
+                memcpy(&val, ptr.baseAddress!, 8)
+                return val
+            }.littleEndian
             let doubleVal = Double(bitPattern: le64)
             return .date(LLDate(secondsSinceEpoch: doubleVal))
         }
