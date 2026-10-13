@@ -16,7 +16,10 @@ export class LLSDSerialize {
         let count = 0;
         let pos = start;
         while ((pos = str.indexOf(sub, pos)) !== -1 && pos < end) {
-            count++;
+            const nextChar = str[pos + sub.length];
+            if (!nextChar || '> \t\r\n/'.includes(nextChar)) {
+                count++;
+            }
             pos += sub.length;
         }
         return count;
@@ -551,6 +554,8 @@ export class LLSDSerialize {
     }
 
     public static fromXML(xmlStr: string): LLSDValue {
+        LLSDSerialize.LLSD_WRAPPER_REGEX.lastIndex = 0;
+        LLSDSerialize.LLSD_TAG_REGEX.lastIndex = 0;
         let contentStr = xmlStr;
         const llsdMatch = LLSDSerialize.LLSD_WRAPPER_REGEX.exec(xmlStr);
         if (llsdMatch) {
@@ -558,6 +563,7 @@ export class LLSDSerialize {
         }
 
         function parseXmlNodes(str: string): { mapEntries: Record<string, LLSDValue>; arrayItems: LLSDValue[] } {
+            LLSDSerialize.LLSD_TAG_REGEX.lastIndex = 0;
             const mapEntries: Record<string, LLSDValue> = {};
             const arrayItems: LLSDValue[] = [];
             let currentKey: string | null = null;

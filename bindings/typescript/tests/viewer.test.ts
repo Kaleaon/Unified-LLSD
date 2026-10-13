@@ -161,6 +161,8 @@ test('LLSD XML Hoisted Regex and Nested Structure Parsing', () => {
 
     // XML without root <llsd> wrapper
     const unwrappedXml = `<map><key>status</key><string>ok</string></map>`;
+    // Mutate lastIndex to verify resilience against state pollution
+    LLSDSerialize.LLSD_TAG_REGEX.lastIndex = 50;
     const unwrappedParsed = LLSDSerialize.fromXML(unwrappedXml);
     assert.equal(unwrappedParsed.get('status').asString(), 'ok');
 });
