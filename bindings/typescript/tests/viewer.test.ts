@@ -109,3 +109,60 @@ test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
 });
+
+test('LLSD XML Hoisted Regex and Nested Structure Parsing', () => {
+    // Verify static regex constants
+    assert.ok(LLSDSerialize.LLSD_WRAPPER_REGEX instanceof RegExp);
+    assert.ok(LLSDSerialize.LLSD_TAG_REGEX instanceof RegExp);
+    assert.equal(LLSDSerialize.LLSD_TAG_REGEX.global, true);
+
+    // Deeply nested XML map and array nodes
+    const nestedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<llsd>
+  <map>
+    <key>nested_map</key>
+    <map>
+      <key>level2</key>
+      <map>
+        <key>level3_key</key>
+        <string>level3_val</string>
+        <key>undef_val</key>
+        <undef/>
+      </map>
+    </map>
+    <key>nested_array</key>
+    <array>
+      <integer>100</integer>
+      <map>
+        <key>item_key</key>
+        <boolean>true</boolean>
+      </map>
+      <array>
+        <real>3.14159</real>
+        <uuid>d7b322a4-e918-4a57-bf29-1d2a13f019a2</uuid>
+      </array>
+    </array>
+  </map>
+</llsd>`;
+
+    const parsed = LLSDSerialize.fromXML(nestedXml);
+    assert.equal(parsed.get('nested_map').get('level2').get('level3_key').asString(), 'level3_val');
+    assert.equal(parsed.get('nested_map').get('level2').get('undef_val').isUndefined(), true);
+
+    const arr = parsed.get('nested_array').asArray;
+    assert.equal(arr.length, 3);
+    assert.equal(arr[0].asInteger(), 100);
+    assert.equal(arr[1].get('item_key').asBoolean(), true);
+
+    const subArr = arr[2].asArray;
+    assert.equal(subArr.length, 2);
+    assert.ok(Math.abs(subArr[0].asReal() - 3.14159) < 0.0001);
+    assert.equal(subArr[1].asUUID().toString(), 'd7b322a4-e918-4a57-bf29-1d2a13f019a2');
+
+    // XML without root <llsd> wrapper
+    const unwrappedXml = `<map><key>status</key><string>ok</string></map>`;
+    // Mutate lastIndex to verify resilience against state pollution
+    LLSDSerialize.LLSD_TAG_REGEX.lastIndex = 50;
+    const unwrappedParsed = LLSDSerialize.fromXML(unwrappedXml);
+    assert.equal(unwrappedParsed.get('status').asString(), 'ok');
+});
