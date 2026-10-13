@@ -43,7 +43,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Tests
-        run: ./gradlew test --stacktrace
+        run: ./gradlew :kotlin:test --stacktrace
 
       - name: Verify Protocol Conformance
         run: python3 tools/verify_llsd_conformance.py
