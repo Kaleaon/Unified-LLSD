@@ -9,6 +9,19 @@ export class LLSDSerialize {
     public static readonly NOTATION_HEADER = '<?llsd/notation?>';
     public static readonly XML_HEADER = '<?xml';
 
+    public static readonly LLSD_WRAPPER_REGEX = /<llsd>([\s\S]*?)<\/llsd>/i;
+    public static readonly LLSD_TAG_REGEX = /<([a-zA-Z0-9]+)(\s+encoding="([^"]+)")?>|<(undef)\/>/gi;
+
+    private static countSubstrings(str: string, sub: string, start: number, end: number): number {
+        let count = 0;
+        let pos = start;
+        while ((pos = str.indexOf(sub, pos)) !== -1 && pos < end) {
+            count++;
+            pos += sub.length;
+        }
+        return count;
+    }
+
     public static parse(data: string | Uint8Array): LLSDValue {
         if (data instanceof Uint8Array) {
             const headerStr = new TextDecoder('ascii').decode(data.subarray(0, 15));
@@ -539,24 +552,57 @@ export class LLSDSerialize {
 
     public static fromXML(xmlStr: string): LLSDValue {
         let contentStr = xmlStr;
-        const llsdMatch = /<llsd>([\s\S]*?)<\/llsd>/i.exec(xmlStr);
+        const llsdMatch = LLSDSerialize.LLSD_WRAPPER_REGEX.exec(xmlStr);
         if (llsdMatch) {
             contentStr = llsdMatch[1];
         }
-
-        const tagRegex = /<([a-zA-Z0-9]+)(\s+encoding="([^"]+)")?>([\s\S]*?)<\/\1>|<(undef)\/>/gi;
 
         function parseXmlNodes(str: string): { mapEntries: Record<string, LLSDValue>; arrayItems: LLSDValue[] } {
             const mapEntries: Record<string, LLSDValue> = {};
             const arrayItems: LLSDValue[] = [];
             let currentKey: string | null = null;
+            let pos = 0;
 
-            let match: RegExpExecArray | null;
-            const subRegex = new RegExp(tagRegex.source, 'gi');
+            for (const match of str.matchAll(LLSDSerialize.LLSD_TAG_REGEX)) {
+                if (match.index < pos) continue;
 
-            while ((match = subRegex.exec(str)) !== null) {
-                const tagName = (match[1] || match[5] || '').toLowerCase();
-                const content = (match[4] || '').trim();
+                const tagName = (match[1] || match[4] || '').toLowerCase();
+                const headerEnd = match.index + match[0].length;
+
+                if (tagName === 'undef') {
+                    pos = headerEnd;
+                    const value = LLSDValue.undefined();
+                    if (currentKey !== null) {
+                        mapEntries[currentKey] = value;
+                        currentKey = null;
+                    } else {
+                        arrayItems.push(value);
+                    }
+                    continue;
+                }
+
+                const closeTag = '</' + tagName + '>';
+                let contentEnd = -1;
+
+                if (tagName === 'map' || tagName === 'array') {
+                    const openTag = '<' + tagName;
+                    let extra = 1;
+                    let searchPos = headerEnd;
+                    while (extra > 0) {
+                        const nextClose = str.indexOf(closeTag, searchPos);
+                        if (nextClose === -1) break;
+                        extra += LLSDSerialize.countSubstrings(str, openTag, searchPos, nextClose) - 1;
+                        searchPos = nextClose + closeTag.length;
+                        if (extra === 0) contentEnd = nextClose;
+                    }
+                } else {
+                    contentEnd = str.indexOf(closeTag, headerEnd);
+                }
+
+                if (contentEnd === -1) break;
+
+                const content = str.substring(headerEnd, contentEnd).trim();
+                pos = contentEnd + closeTag.length;
 
                 if (tagName === 'key') {
                     currentKey = content;
