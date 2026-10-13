@@ -22,6 +22,7 @@ namespace Linkpoint.LLSD.Network
         private readonly object _lock = new object();
         private uint _nextOutSequenceNumber = 1;
         private readonly HashSet<uint> _receivedSequences = new HashSet<uint>();
+        private readonly Queue<uint> _receivedSequenceQueue = new Queue<uint>();
         private readonly Queue<uint> _pendingAcks = new Queue<uint>();
         private readonly Dictionary<uint, UnackedPacket> _unackedPackets = new Dictionary<uint, UnackedPacket>();
 
@@ -59,12 +60,13 @@ namespace Linkpoint.LLSD.Network
                 }
 
                 _receivedSequences.Add(sequenceNumber);
+                _receivedSequenceQueue.Enqueue(sequenceNumber);
 
                 // Keep memory usage bounded for received sequence window
                 if (_receivedSequences.Count > 2048)
                 {
-                    uint min = _receivedSequences.Min();
-                    _receivedSequences.Remove(min);
+                    uint oldest = _receivedSequenceQueue.Dequeue();
+                    _receivedSequences.Remove(oldest);
                 }
 
                 if (reliable)
