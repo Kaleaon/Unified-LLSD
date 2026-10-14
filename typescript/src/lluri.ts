@@ -2,7 +2,7 @@ export class LLURI {
   public readonly uri: string;
 
   constructor(uri?: string) {
-    this.uri = uri || '';
+    this.uri = uri || "";
   }
 
   public asString(): string {

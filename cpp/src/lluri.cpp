@@ -4,6 +4,6 @@ namespace llsd {
 
 LLURI::LLURI() : mUri("") {}
 
-LLURI::LLURI(const std::string& uri) : mUri(uri) {}
+LLURI::LLURI(const std::string &uri) : mUri(uri) {}
 
 } // namespace llsd

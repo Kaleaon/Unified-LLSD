@@ -34,19 +34,26 @@ class LLSDSerialize {
         break;
       case LLSDType.real:
         final r = sd.asReal();
-        if (r.isNaN) sb.write('<real>nan</real>');
-        else if (r.isInfinite) sb.write('<real>${r > 0 ? "inf" : "-inf"}</real>');
-        else sb.write('<real>$r</real>');
+        if (r.isNaN)
+          sb.write('<real>nan</real>');
+        else if (r.isInfinite)
+          sb.write('<real>${r > 0 ? "inf" : "-inf"}</real>');
+        else
+          sb.write('<real>$r</real>');
         break;
       case LLSDType.string:
         final s = sd.asString();
-        if (s.isEmpty) sb.write('<string/>');
-        else sb.write('<string>${_xmlEscape(s)}</string>');
+        if (s.isEmpty)
+          sb.write('<string/>');
+        else
+          sb.write('<string>${_xmlEscape(s)}</string>');
         break;
       case LLSDType.uuid:
         final u = sd.asUUID();
-        if (u.isNull) sb.write('<uuid/>');
-        else sb.write('<uuid>$u</uuid>');
+        if (u.isNull)
+          sb.write('<uuid/>');
+        else
+          sb.write('<uuid>$u</uuid>');
         break;
       case LLSDType.date:
         sb.write('<date>${sd.asDate().toISOString()}</date>');
@@ -55,7 +62,8 @@ class LLSDSerialize {
         sb.write('<uri>${_xmlEscape(sd.asURI().asString())}</uri>');
         break;
       case LLSDType.binary:
-        sb.write('<binary encoding="base64">${base64Encode(sd.asBinary())}</binary>');
+        sb.write(
+            '<binary encoding="base64">${base64Encode(sd.asBinary())}</binary>');
         break;
       case LLSDType.map:
         sb.write('<map>');
@@ -69,7 +77,11 @@ class LLSDSerialize {
   }
 
   static String _xmlEscape(String s) {
-    return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
   }
 
   static LLSD fromXML(String xml) {
@@ -85,7 +97,8 @@ class LLSDSerialize {
     }
     if (clean.contains('<boolean>')) {
       final match = RegExp(r'<boolean>(.*?)</boolean>').firstMatch(clean);
-      if (match != null) return LLSD.boolVal(match.group(1) == 'true' || match.group(1) == '1');
+      if (match != null)
+        return LLSD.boolVal(match.group(1) == 'true' || match.group(1) == '1');
     }
     return LLSD.undefined;
   }
@@ -129,7 +142,8 @@ class LLSDSerialize {
       case LLSDType.date:
         bb.addByte(100); // 'd'
         // Date is LE 8-byte double!
-        final bdata = ByteData(8)..setFloat64(0, sd.asDate().secondsSinceEpoch, Endian.little);
+        final bdata = ByteData(8)
+          ..setFloat64(0, sd.asDate().secondsSinceEpoch, Endian.little);
         bb.add(bdata.buffer.asUint8List());
         break;
       case LLSDType.uri:
@@ -167,9 +181,12 @@ class LLSDSerialize {
     final bd = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.length);
     final tag = bytes[pos++];
     switch (tag) {
-      case 33: return LLSD.undefined;
-      case 49: return LLSD.boolVal(true);
-      case 48: return LLSD.boolVal(false);
+      case 33:
+        return LLSD.undefined;
+      case 49:
+        return LLSD.boolVal(true);
+      case 48:
+        return LLSD.boolVal(false);
       case 105:
         final v = bd.getInt32(pos, Endian.big);
         return LLSD.intVal(v);
@@ -179,32 +196,46 @@ class LLSDSerialize {
       case 100:
         final v = bd.getFloat64(pos, Endian.little);
         return LLSD.dateVal(LLDate(v));
-      default: return LLSD.undefined;
+      default:
+        return LLSD.undefined;
     }
   }
 
   // --- Notation ---
   static String toNotation(LLSD sd) {
     switch (sd.type) {
-      case LLSDType.undefined: return '!';
-      case LLSDType.boolean: return sd.asBoolean() ? 'true' : 'false';
-      case LLSDType.integer: return 'i${sd.asInt()}';
-      case LLSDType.real: return 'r${sd.asReal()}';
-      case LLSDType.string: return "'${sd.asString()}'";
-      case LLSDType.uuid: return 'u${sd.asUUID()}';
-      case LLSDType.date: return 'd"${sd.asDate().toISOString()}"';
-      case LLSDType.uri: return 'l"${sd.asURI().asString()}"';
-      case LLSDType.binary: return 'b64"${base64Encode(sd.asBinary())}"';
-      default: return '!';
+      case LLSDType.undefined:
+        return '!';
+      case LLSDType.boolean:
+        return sd.asBoolean() ? 'true' : 'false';
+      case LLSDType.integer:
+        return 'i${sd.asInt()}';
+      case LLSDType.real:
+        return 'r${sd.asReal()}';
+      case LLSDType.string:
+        return "'${sd.asString()}'";
+      case LLSDType.uuid:
+        return 'u${sd.asUUID()}';
+      case LLSDType.date:
+        return 'd"${sd.asDate().toISOString()}"';
+      case LLSDType.uri:
+        return 'l"${sd.asURI().asString()}"';
+      case LLSDType.binary:
+        return 'b64"${base64Encode(sd.asBinary())}"';
+      default:
+        return '!';
     }
   }
 
   static LLSD fromNotation(String text) {
     final clean = text.trim();
     if (clean == '!') return LLSD.undefined;
-    if (clean.startsWith('i')) return LLSD.intVal(int.parse(clean.substring(1)));
-    if (clean.startsWith('r')) return LLSD.realVal(double.parse(clean.substring(1)));
-    if (clean.startsWith("'") && clean.endsWith("'")) return LLSD.stringVal(clean.substring(1, clean.length - 1));
+    if (clean.startsWith('i'))
+      return LLSD.intVal(int.parse(clean.substring(1)));
+    if (clean.startsWith('r'))
+      return LLSD.realVal(double.parse(clean.substring(1)));
+    if (clean.startsWith("'") && clean.endsWith("'"))
+      return LLSD.stringVal(clean.substring(1, clean.length - 1));
     return LLSD.undefined;
   }
 }

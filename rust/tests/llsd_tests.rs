@@ -1,5 +1,7 @@
-use unified_llsd::{Llsd, LlUuid, LlDate, to_xml, from_xml, to_binary, from_binary, to_notation, from_notation};
 use std::collections::BTreeMap;
+use unified_llsd::{
+    from_binary, from_notation, from_xml, to_binary, to_notation, to_xml, LlDate, LlUuid, Llsd,
+};
 
 #[test]
 fn test_scalars_and_64bit_integer() {
@@ -42,12 +44,18 @@ fn test_binary_roundtrip_and_endianness() {
 fn test_notation_roundtrip() {
     let mut map = BTreeMap::new();
     map.insert("str".to_string(), Llsd::String("notation test".to_string()));
-    map.insert("uuid".to_string(), Llsd::Uuid(LlUuid::from_string("550e8400-e29b-41d4-a716-446655440000").unwrap()));
+    map.insert(
+        "uuid".to_string(),
+        Llsd::Uuid(LlUuid::from_string("550e8400-e29b-41d4-a716-446655440000").unwrap()),
+    );
     let sd = Llsd::Map(map);
 
     let notation = to_notation(&sd);
     let back = from_notation(&notation);
 
     assert_eq!(back["str"].as_string(), "notation test");
-    assert_eq!(back["uuid"].as_uuid().to_string(), "550e8400-e29b-41d4-a716-446655440000");
+    assert_eq!(
+        back["uuid"].as_uuid().to_string(),
+        "550e8400-e29b-41d4-a716-446655440000"
+    );
 }
