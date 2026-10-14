@@ -61,3 +61,58 @@ jobs:
       - name: Run C# SDK Tests
         run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 
+  cpp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and Run C++ SDK Tests
+        run: |
+          cd cpp
+          cmake -B build
+          cmake --build build
+          ./build/test_llsd
+
+  rust-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust SDK Tests
+        run: cargo test
+        working-directory: rust
+
+  dart-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Run Dart SDK Tests
+        run: dart test
+        working-directory: dart
+
+  swift-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+      - name: Run Swift SDK Tests
+        run: swift test
+        working-directory: swift
+
+  typescript-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: typescript
+      - name: Run TypeScript SDK Tests
+        run: npm test
+        working-directory: typescript
