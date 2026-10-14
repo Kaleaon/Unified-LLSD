@@ -82,6 +82,17 @@ public enum LLSD: Equatable, Codable {
         return LLDate.null
     }
 
+    public func asURI() -> LLURI {
+        if case .uri(let u) = self { return u }
+        if case .string(let s) = self { return LLURI(uriString: s) }
+        return LLURI(uriString: "")
+    }
+
+    public func asBinary() -> Data {
+        if case .binary(let b) = self { return b }
+        return Data()
+    }
+
     public subscript(key: String) -> LLSD {
         get {
             if case .map(let m) = self { return m[key] ?? .undefined }
