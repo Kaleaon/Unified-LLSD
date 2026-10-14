@@ -17,7 +17,7 @@ import {
 export class MeshAssetDecoder {
     /**
      * Decode rigged mesh joint influences from binary data.
-     * Supports extended skeletons with up to 256 joints (0..255) and 0xFF sentinel byte.
+     * Supports extended skeletons with up to 256 joints (0..255) and 0xFFFF sentinel.
      */
     public static parseJointInfluences(buffer: Uint8Array, offset: number = 0): { jointInfluences: JointInfluence[]; bytesRead: number } {
         const influences: JointInfluence[] = [];
@@ -25,9 +25,12 @@ export class MeshAssetDecoder {
         const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
         while (cur < buffer.length) {
-            const jointIdx = buffer[cur++];
+            if (cur + 2 > buffer.length) break;
+            const j0 = buffer[cur++];
+            const j1 = buffer[cur++];
+            const jointIdx = (j1 << 8) | j0;
             if (jointIdx === AssetSchemaConstants.JOINT_SENTINEL) {
-                break; // 0xFF end of list sentinel
+                break; // 0xFFFF end of list sentinel
             }
 
             if (cur + 2 > buffer.length) break;

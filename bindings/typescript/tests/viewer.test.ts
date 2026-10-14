@@ -18,7 +18,7 @@ import {
 
 test('AssetSchemaAdapter constants and LOD mapping', () => {
     assert.equal(AssetSchemaConstants.MAX_RIGGED_MESH_JOINTS, 256);
-    assert.equal(AssetSchemaConstants.JOINT_SENTINEL, 0xFF);
+    assert.equal(AssetSchemaConstants.JOINT_SENTINEL, 0xFFFF);
 
     assert.equal(AssetSchemaConstants.getLodKey(DetailLevel.HIGHEST), 'high_lod');
     assert.equal(AssetSchemaConstants.getLodKey(DetailLevel.HIGH), 'high_lod');
@@ -96,16 +96,16 @@ test('LLSD Multi-Format Serialization & Auto-Detect', () => {
 });
 
 test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
-    // Construct mock binary joint influence buffer with extended skeleton joint (>163) and 0xFF sentinel
+    // Construct mock binary joint influence buffer with 16-bit joint indices (including joint 255) and 0xFFFF sentinel
     const mockBuffer = new Uint8Array([
-        0, 0, 128,   // Joint 0, weight ~0.5 (128/255 -> 0.5)
-        165, 0, 255, // Joint 165 (extended skeleton joint > 163), weight ~1.0
-        0xFF         // Sentinel end of list
+        0, 0, 0, 128,      // Joint 0 (0x0000), weight ~0.5 (32768/65535)
+        255, 0, 255, 255,  // Joint 255 (0x00FF), weight 1.0 (65535/65535)
+        255, 255           // Sentinel 0xFFFF
     ]);
 
     const result = MeshAssetDecoder.parseJointInfluences(mockBuffer);
     assert.equal(result.jointInfluences.length, 2);
     assert.equal(result.jointInfluences[0].jointIndex, 0);
-    assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
+    assert.equal(result.jointInfluences[1].jointIndex, 255); // Successfully parsed joint 255!
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
 });
