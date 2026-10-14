@@ -61,63 +61,261 @@ export class LLSDSerialize {
   }
 
   // --- Binary ---
-  public static toBinary(sd: LLSD): Uint8Array {
-    const chunks: Uint8Array[] = [];
-    this.writeBinary(chunks, sd);
-    let totalLen = 0;
-    for (const c of chunks) totalLen += c.length;
-    const res = new Uint8Array(totalLen);
-    let offset = 0;
-    for (const c of chunks) {
-      res.set(c, offset);
-      offset += c.length;
+  private static readonly textEncoder = new TextEncoder();
+
+  private static getUtf8ByteLength(str: string): number {
+    let len = 0;
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code < 0x80) {
+        len += 1;
+      } else if (code < 0x800) {
+        len += 2;
+      } else if (code >= 0xD800 && code <= 0xDBFF && i + 1 < str.length && str.charCodeAt(i + 1) >= 0xDC00 && str.charCodeAt(i + 1) <= 0xDFFF) {
+        len += 4;
+        i++;
+      } else {
+        len += 3;
+      }
     }
+    return len;
+  }
+
+  public static calculateBinarySize(sd: LLSD): number {
+    switch (sd.type) {
+      case LLSDType.Undefined:
+      case LLSDType.Boolean:
+        return 1;
+      case LLSDType.Integer:
+        return 5;
+      case LLSDType.Real:
+        return 9;
+      case LLSDType.UUID:
+        return 17;
+      case LLSDType.String:
+        return 5 + this.getUtf8ByteLength(sd.asString());
+      case LLSDType.URI:
+        return 5 + this.getUtf8ByteLength(sd.asURI().asString());
+      case LLSDType.Binary:
+        return 5 + sd.asBinary().length;
+      case LLSDType.Date:
+        return 9;
+      case LLSDType.Map: {
+        let size = 5; // '{' + uint32 count
+        sd.asMap().forEach((v, k) => {
+          size += 5 + this.getUtf8ByteLength(k);
+          size += this.calculateBinarySize(v);
+        });
+        size += 1; // '}'
+        return size;
+      }
+      case LLSDType.Array: {
+        let size = 5; // '[' + uint32 count
+        const arr = sd.asArray();
+        for (let i = 0; i < arr.length; i++) {
+          size += this.calculateBinarySize(arr[i]);
+        }
+        size += 1; // ']'
+        return size;
+      }
+      default:
+        return 1;
+    }
+  }
+
+  public static toBinary(sd: LLSD): Uint8Array {
+    const totalLen = this.calculateBinarySize(sd);
+    const res = new Uint8Array(totalLen);
+    const dv = new DataView(res.buffer, res.byteOffset, res.byteLength);
+    this.writeBinaryDirect(sd, res, dv, 0);
     return res;
   }
 
-  private static writeBinary(chunks: Uint8Array[], sd: LLSD): void {
+  private static writeBinaryDirect(sd: LLSD, buffer: Uint8Array, dv: DataView, offset: number): number {
     switch (sd.type) {
-      case LLSDType.Undefined: chunks.push(new Uint8Array([33])); break; // '!'
-      case LLSDType.Boolean: chunks.push(new Uint8Array([sd.asBoolean() ? 49 : 48])); break; // '1' or '0'
-      case LLSDType.Integer: {
-        const buf = new Uint8Array(5);
-        buf[0] = 105; // 'i'
-        const dv = new DataView(buf.buffer, 1, 4);
-        dv.setInt32(0, sd.asInteger(), false); // Big endian
-        chunks.push(buf);
-        break;
+      case LLSDType.Undefined:
+        buffer[offset++] = 33; // '!'
+        return offset;
+      case LLSDType.Boolean:
+        buffer[offset++] = sd.asBoolean() ? 49 : 48; // '1' or '0'
+        return offset;
+      case LLSDType.Integer:
+        buffer[offset++] = 105; // 'i'
+        dv.setInt32(offset, sd.asInteger(), false); // Big endian
+        return offset + 4;
+      case LLSDType.Real:
+        buffer[offset++] = 114; // 'r'
+        dv.setFloat64(offset, sd.asReal(), false); // Big endian
+        return offset + 8;
+      case LLSDType.UUID:
+        buffer[offset++] = 117; // 'u'
+        buffer.set(sd.asUUID().bytes, offset);
+        return offset + 16;
+      case LLSDType.String: {
+        buffer[offset++] = 115; // 's'
+        const s = sd.asString();
+        const strLen = this.getUtf8ByteLength(s);
+        dv.setUint32(offset, strLen, false);
+        offset += 4;
+        if (strLen > 0) {
+          this.textEncoder.encodeInto(s, buffer.subarray(offset, offset + strLen));
+          offset += strLen;
+        }
+        return offset;
       }
-      case LLSDType.Real: {
-        const buf = new Uint8Array(9);
-        buf[0] = 114; // 'r'
-        const dv = new DataView(buf.buffer, 1, 8);
-        dv.setFloat64(0, sd.asReal(), false); // Big endian
-        chunks.push(buf);
-        break;
+      case LLSDType.URI: {
+        buffer[offset++] = 108; // 'l'
+        const uriStr = sd.asURI().asString();
+        const uriLen = this.getUtf8ByteLength(uriStr);
+        dv.setUint32(offset, uriLen, false);
+        offset += 4;
+        if (uriLen > 0) {
+          this.textEncoder.encodeInto(uriStr, buffer.subarray(offset, offset + uriLen));
+          offset += uriLen;
+        }
+        return offset;
       }
-      case LLSDType.Date: {
-        const buf = new Uint8Array(9);
-        buf[0] = 100; // 'd'
-        const dv = new DataView(buf.buffer, 1, 8);
-        dv.setFloat64(0, sd.asDate().secondsSinceEpoch, true); // Date is LE!
-        chunks.push(buf);
-        break;
+      case LLSDType.Binary: {
+        buffer[offset++] = 98; // 'b'
+        const bin = sd.asBinary();
+        dv.setUint32(offset, bin.length, false);
+        offset += 4;
+        if (bin.length > 0) {
+          buffer.set(bin, offset);
+          offset += bin.length;
+        }
+        return offset;
       }
-      default: chunks.push(new Uint8Array([33])); break;
+      case LLSDType.Date:
+        buffer[offset++] = 100; // 'd'
+        dv.setFloat64(offset, sd.asDate().secondsSinceEpoch, true); // Date is LE!
+        return offset + 8;
+      case LLSDType.Map: {
+        buffer[offset++] = 123; // '{'
+        const map = sd.asMap();
+        dv.setUint32(offset, map.size, false);
+        offset += 4;
+        map.forEach((v, k) => {
+          buffer[offset++] = 107; // 'k'
+          const keyLen = this.getUtf8ByteLength(k);
+          dv.setUint32(offset, keyLen, false);
+          offset += 4;
+          if (keyLen > 0) {
+            this.textEncoder.encodeInto(k, buffer.subarray(offset, offset + keyLen));
+            offset += keyLen;
+          }
+          offset = this.writeBinaryDirect(v, buffer, dv, offset);
+        });
+        buffer[offset++] = 125; // '}'
+        return offset;
+      }
+      case LLSDType.Array: {
+        buffer[offset++] = 91; // '['
+        const arr = sd.asArray();
+        dv.setUint32(offset, arr.length, false);
+        offset += 4;
+        for (let i = 0; i < arr.length; i++) {
+          offset = this.writeBinaryDirect(arr[i], buffer, dv, offset);
+        }
+        buffer[offset++] = 93; // ']'
+        return offset;
+      }
+      default:
+        buffer[offset++] = 33;
+        return offset;
     }
   }
 
   public static fromBinary(bytes: Uint8Array): LLSD {
     if (bytes.length === 0) return LLSD.undefined;
-    const tag = bytes[0];
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (tag === 33) return LLSD.undefined;
-    if (tag === 49) return new LLSD(true);
-    if (tag === 48) return new LLSD(false);
-    if (tag === 105) return new LLSD(BigInt(dv.getInt32(1, false)));
-    if (tag === 114) return new LLSD(dv.getFloat64(1, false));
-    if (tag === 100) return new LLSD(new LLDate(dv.getFloat64(1, true))); // Date is LE!
-    return LLSD.undefined;
+    let offset = 0;
+
+    function readValue(): LLSD {
+      if (offset >= bytes.length) return LLSD.undefined;
+      const marker = bytes[offset++];
+
+      switch (marker) {
+        case 33: // '!'
+          return LLSD.undefined;
+        case 48: // '0'
+          return new LLSD(false);
+        case 49: // '1'
+          return new LLSD(true);
+        case 105: { // 'i'
+          const val = dv.getInt32(offset, false);
+          offset += 4;
+          return new LLSD(BigInt(val));
+        }
+        case 114: { // 'r'
+          const val = dv.getFloat64(offset, false);
+          offset += 8;
+          return new LLSD(val);
+        }
+        case 117: { // 'u'
+          const uuid = new LLUUID(bytes.subarray(offset, offset + 16));
+          offset += 16;
+          return new LLSD(uuid);
+        }
+        case 115: { // 's'
+          const len = dv.getUint32(offset, false);
+          offset += 4;
+          const str = new TextDecoder('utf-8').decode(bytes.subarray(offset, offset + len));
+          offset += len;
+          return new LLSD(str);
+        }
+        case 108: { // 'l'
+          const len = dv.getUint32(offset, false);
+          offset += 4;
+          const uri = new TextDecoder('utf-8').decode(bytes.subarray(offset, offset + len));
+          offset += len;
+          return new LLSD(new LLURI(uri));
+        }
+        case 98: { // 'b'
+          const len = dv.getUint32(offset, false);
+          offset += 4;
+          const bin = bytes.slice(offset, offset + len);
+          offset += len;
+          return new LLSD(bin);
+        }
+        case 100: { // 'd'
+          const sec = dv.getFloat64(offset, true); // LE double
+          offset += 8;
+          return new LLSD(new LLDate(sec));
+        }
+        case 123: { // '{'
+          const count = dv.getUint32(offset, false);
+          offset += 4;
+          const map = new Map<string, LLSD>();
+          for (let i = 0; i < count; i++) {
+            if (bytes[offset] === 107) { // 'k'
+              offset++;
+              const keyLen = dv.getUint32(offset, false);
+              offset += 4;
+              const key = new TextDecoder('utf-8').decode(bytes.subarray(offset, offset + keyLen));
+              offset += keyLen;
+              map.set(key, readValue());
+            }
+          }
+          if (bytes[offset] === 125) offset++; // '}'
+          return new LLSD(map);
+        }
+        case 91: { // '['
+          const count = dv.getUint32(offset, false);
+          offset += 4;
+          const arr: LLSD[] = [];
+          for (let i = 0; i < count; i++) {
+            arr.push(readValue());
+          }
+          if (bytes[offset] === 93) offset++; // ']'
+          return new LLSD(arr);
+        }
+        default:
+          return LLSD.undefined;
+      }
+    }
+
+    return readValue();
   }
 
   // --- Notation ---
