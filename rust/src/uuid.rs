@@ -21,7 +21,10 @@ impl LlUuid {
     }
 
     pub fn from_string(s: &str) -> Option<Self> {
-        let clean: String = s.chars().filter(|c| *c != '-' && *c != '{' && *c != '}').collect();
+        let clean: String = s
+            .chars()
+            .filter(|c| *c != '-' && *c != '{' && *c != '}')
+            .collect();
         if clean.len() != 32 {
             return None;
         }
