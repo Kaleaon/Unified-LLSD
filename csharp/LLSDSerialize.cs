@@ -126,7 +126,7 @@ namespace Unified.LLSD
                 case "uri": return new LLSD(new LLURI(el.InnerText.Trim()));
                 case "binary":
                     string enc = el.GetAttribute("encoding").ToLowerInvariant();
-                    if (enc == "base16") return new LLSD(HexDecode(el.InnerText.Trim()));
+                    if (enc == "base16") return new LLSD(Linkpoint.LLSD.HexDecoder.Decode(el.InnerText.Trim()));
                     return new LLSD(Convert.FromBase64String(el.InnerText.Trim()));
                 case "map":
                     var map = new Dictionary<string, LLSD>();
@@ -154,17 +154,6 @@ namespace Unified.LLSD
                     return new LLSD(list);
                 default: return LLSD.Undefined;
             }
-        }
-
-        private static byte[] HexDecode(string hex)
-        {
-            if (hex.Length % 2 != 0) return Array.Empty<byte>();
-            byte[] bytes = new byte[hex.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
-            }
-            return bytes;
         }
 
         // --- Binary ---
