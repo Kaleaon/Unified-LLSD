@@ -11,7 +11,7 @@ enum class DetailLevel(val code: Int) {
 
 object AssetSchemaConstants {
     const val MAX_RIGGED_MESH_JOINTS: Int = 256
-    const val JOINT_SENTINEL: Int = 0xFF
+    const val JOINT_SENTINEL: Int = 0xFFFF
 
     fun getLodKey(lod: DetailLevel): String = when (lod) {
         DetailLevel.HIGHEST, DetailLevel.HIGH -> "high_lod"

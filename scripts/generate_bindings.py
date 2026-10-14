@@ -27,7 +27,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {
@@ -82,7 +82,7 @@ enum class DetailLevel(val code: Int) {
 
 object AssetSchemaConstants {
     const val MAX_RIGGED_MESH_JOINTS: Int = 256
-    const val JOINT_SENTINEL: Int = 0xFF
+    const val JOINT_SENTINEL: Int = 0xFFFF
 
     fun getLodKey(lod: DetailLevel): String = when (lod) {
         DetailLevel.HIGHEST, DetailLevel.HIGH -> "high_lod"
@@ -130,7 +130,7 @@ namespace Linkpoint.LLSD.Schema
     public static class AssetSchemaConstants
     {
         public const int MAX_RIGGED_MESH_JOINTS = 256;
-        public const byte JOINT_SENTINEL = 0xFF;
+        public const ushort JOINT_SENTINEL = 0xFFFF;
 
         public static string GetLodKey(DetailLevel lod)
         {
@@ -183,7 +183,7 @@ package com.unifiedllsd.schema;
 
 public class AssetSchemaAdapter {
     public static final int MAX_RIGGED_MESH_JOINTS = 256;
-    public static final int JOINT_SENTINEL = 0xFF;
+    public static final int JOINT_SENTINEL = 0xFFFF;
 
     public enum DetailLevel {
         HIGHEST,
@@ -248,7 +248,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {

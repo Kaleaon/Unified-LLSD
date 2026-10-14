@@ -60,37 +60,44 @@ class TestAssetSchemaConformance(unittest.TestCase):
         self.assertEqual(lod_mappings["LOW"], "low_lod")
 
     def test_joint_limits_and_sentinel(self):
-        """Verify MAX_RIGGED_MESH_JOINTS limit is 256 and sentinel byte is 0xFF."""
+        """Verify MAX_RIGGED_MESH_JOINTS limit is 256 and sentinel value is 0xFFFF (65535)."""
         MAX_RIGGED_MESH_JOINTS = 256
-        JOINT_SENTINEL = 0xFF
+        JOINT_SENTINEL = 0xFFFF
 
         self.assertEqual(MAX_RIGGED_MESH_JOINTS, 256, "Max rigged mesh joints capacity must be 256")
-        self.assertEqual(JOINT_SENTINEL, 255, "Joint sentinel byte must be 0xFF (255)")
+        self.assertEqual(JOINT_SENTINEL, 65535, "Joint sentinel value must be 0xFFFF (65535)")
 
-        # Test joint sentinel parsing logic simulation for extended skeletons (e.g. >163 joints)
+        # Test joint sentinel parsing logic simulation for extended skeletons with uint16 joint indices
+        # Mock binary payload containing joint 0, joint 255 (valid joint index on 256-joint mesh), and 0xFFFF sentinel
         mock_joint_influence_data = bytearray([
-            0, 0, 128,   # joint 0, weight ~0.5
-            165, 0, 255, # joint 165 (extended skeleton joint > 163), weight ~1.0
-            0xFF         # sentinel end of list
+            0, 0, 0, 128,      # joint 0 (0x0000), weight ~0.5
+            255, 0, 255, 255,  # joint 255 (0x00FF), weight 1.0 (65535/65535)
+            0xFF, 0xFF         # 0xFFFF sentinel end of list
         ])
 
         parsed_joints = []
         i = 0
         while i < len(mock_joint_influence_data):
-            joint_idx = mock_joint_influence_data[i]
-            i += 1
+            if i + 2 > len(mock_joint_influence_data):
+                break
+            j0 = mock_joint_influence_data[i]
+            j1 = mock_joint_influence_data[i+1]
+            i += 2
+            joint_idx = (j1 << 8) | j0
             if joint_idx == JOINT_SENTINEL:
                 break
-            b0 = mock_joint_influence_data[i]
-            i += 1
-            b1 = mock_joint_influence_data[i]
-            i += 1
-            weight_val = ((b1 << 8) | b0) / 65535.0
+            if i + 2 > len(mock_joint_influence_data):
+                break
+            wb0 = mock_joint_influence_data[i]
+            wb1 = mock_joint_influence_data[i+1]
+            i += 2
+            weight_val = ((wb1 << 8) | wb0) / 65535.0
             parsed_joints.append((joint_idx, weight_val))
 
         self.assertEqual(len(parsed_joints), 2)
         self.assertEqual(parsed_joints[0][0], 0)
-        self.assertEqual(parsed_joints[1][0], 165)  # Successfully parses joint 165 > 163!
+        self.assertEqual(parsed_joints[1][0], 255)  # Successfully parses joint 255 without collision!
+        self.assertAlmostEqual(parsed_joints[1][1], 1.0, places=4)
 
     def test_typescript_bindings_exist(self):
         """Verify generated TypeScript bindings file and key schema constants."""
@@ -101,7 +108,7 @@ class TestAssetSchemaConformance(unittest.TestCase):
             content = f.read()
 
         self.assertIn("MAX_RIGGED_MESH_JOINTS: number = 256", content)
-        self.assertIn("JOINT_SENTINEL: number = 0xFF", content)
+        self.assertIn("JOINT_SENTINEL: number = 0xFFFF", content)
         self.assertIn("class TextureTransformAdapter", content)
         self.assertIn("getLodKey", content)
 

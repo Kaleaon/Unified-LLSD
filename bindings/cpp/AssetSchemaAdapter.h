@@ -17,7 +17,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {

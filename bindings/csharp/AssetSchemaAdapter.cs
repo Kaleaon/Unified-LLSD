@@ -15,7 +15,7 @@ namespace Linkpoint.LLSD.Schema
     public static class AssetSchemaConstants
     {
         public const int MAX_RIGGED_MESH_JOINTS = 256;
-        public const byte JOINT_SENTINEL = 0xFF;
+        public const ushort JOINT_SENTINEL = 0xFFFF;
 
         public static string GetLodKey(DetailLevel lod)
         {
