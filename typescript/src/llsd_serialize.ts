@@ -123,21 +123,339 @@ export class LLSDSerialize {
   // --- Notation ---
   public static toNotation(sd: LLSD): string {
     switch (sd.type) {
-      case LLSDType.Undefined: return '!';
-      case LLSDType.Boolean: return sd.asBoolean() ? 'true' : 'false';
-      case LLSDType.Integer: return `i${sd.asBigInt()}`;
-      case LLSDType.Real: return `r${sd.asReal()}`;
-      case LLSDType.String: return `'${sd.asString()}'`;
-      default: return '!';
+      case LLSDType.Undefined:
+        return '!';
+      case LLSDType.Boolean:
+        return sd.asBoolean() ? 'true' : 'false';
+      case LLSDType.Integer:
+        return `i${sd.asBigInt()}`;
+      case LLSDType.Real:
+        const r = sd.asReal();
+        if (isNaN(r)) return 'rnan';
+        if (!isFinite(r)) return r > 0 ? 'rinf' : 'r-inf';
+        return `r${r}`;
+      case LLSDType.String:
+        return `'${this.escapeNotationString(sd.asString())}'`;
+      case LLSDType.UUID:
+        return `u${sd.asUUID().toString()}`;
+      case LLSDType.Date:
+        return `d"${sd.asDate().toISOString()}"`;
+      case LLSDType.URI:
+        return `l"${sd.asURI().asString()}"`;
+      case LLSDType.Binary:
+        return `b64"${Buffer.from(sd.asBinary()).toString('base64')}"`;
+      case LLSDType.Map:
+        const map = sd.asMap();
+        const mapParts: string[] = [];
+        for (const [k, v] of map.entries()) {
+          mapParts.push(`'${this.escapeNotationString(k)}':${this.toNotation(v)}`);
+        }
+        return `{${mapParts.join(',')}}`;
+      case LLSDType.Array:
+        const arr = sd.asArray();
+        const arrParts = arr.map(v => this.toNotation(v));
+        return `[${arrParts.join(',')}]`;
     }
   }
 
+  private static escapeNotationString(s: string): string {
+    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
   public static fromNotation(text: string): LLSD {
-    const clean = text.trim();
-    if (clean === '!') return LLSD.undefined;
-    if (clean.startsWith('i')) return new LLSD(BigInt(clean.substring(1)));
-    if (clean.startsWith('r')) return new LLSD(parseFloat(clean.substring(1)));
-    if (clean.startsWith("'") && clean.endsWith("'")) return new LLSD(clean.substring(1, clean.length - 1));
+    let clean = text;
+    if (clean.startsWith('<?llsd/notation?>') || clean.startsWith('<? llsd/notation ?>')) {
+      const nl = clean.indexOf('\n');
+      if (nl >= 0) {
+        clean = clean.substring(nl + 1);
+      }
+    }
+    return new TypeScriptNotationParser(clean).parse();
+  }
+}
+
+class TypeScriptNotationParser {
+  private pos = 0;
+
+  constructor(private text: string) {}
+
+  public parse(): LLSD {
+    this.skipWs();
+    return this.parseValue();
+  }
+
+  private skipWs(): void {
+    while (this.pos < this.text.length && /\s/.test(this.text[this.pos])) {
+      this.pos++;
+    }
+  }
+
+  private peek(): string {
+    return this.pos < this.text.length ? this.text[this.pos] : '';
+  }
+
+  private peekAt(offset: number): string {
+    return this.pos + offset < this.text.length ? this.text[this.pos + offset] : '';
+  }
+
+  private consume(): string {
+    return this.pos < this.text.length ? this.text[this.pos++] : '';
+  }
+
+  public parseValue(): LLSD {
+    this.skipWs();
+    if (this.pos >= this.text.length) return LLSD.undefined;
+    const c = this.peek();
+
+    if (c === '!') { this.consume(); return LLSD.undefined; }
+    if (c === 'T' || c === 't') return this.parseBoolWord(true);
+    if (c === 'F' || c === 'f') return this.parseBoolWord(false);
+    if (c === '1') { this.consume(); return new LLSD(true); }
+    if (c === '0') { this.consume(); return new LLSD(false); }
+    if (c === 'i') {
+      this.consume();
+      const numStr = this.parseNumberWord();
+      try { return new LLSD(BigInt(numStr)); } catch { return new LLSD(0n); }
+    }
+    if (c === 'r') {
+      this.consume();
+      const numStr = this.parseNumberWord();
+      if (numStr === 'nan') return new LLSD(NaN, LLSDType.Real);
+      if (numStr === 'inf' || numStr === '+inf' || numStr === 'infinity') return new LLSD(Infinity, LLSDType.Real);
+      if (numStr === '-inf' || numStr === '-infinity') return new LLSD(-Infinity, LLSDType.Real);
+      return new LLSD(parseFloat(numStr), LLSDType.Real);
+    }
+    if (c === 'u') {
+      this.consume();
+      const uuidStr = this.parseUuidLiteral();
+      return new LLSD(new LLUUID(uuidStr));
+    }
+    if (c === 'd') {
+      this.consume();
+      const qStr = this.parseQuotedAfterTag();
+      return new LLSD(new LLDate(qStr));
+    }
+    if (c === 'l') {
+      this.consume();
+      const qStr = this.parseQuotedAfterTag();
+      return new LLSD(new LLURI(qStr));
+    }
+    if (c === 'b') return this.parseBinaryNotation();
+    if (c === 's') return this.parseSizedString();
+    if (c === "'") return new LLSD(this.parseSingleQuoted());
+    if (c === '"') return new LLSD(this.parseDoubleQuoted());
+    if (c === '{') return this.parseMap();
+    if (c === '[') return this.parseArray();
+
+    this.consume();
     return LLSD.undefined;
+  }
+
+  private parseBoolWord(expectedBool: boolean): LLSD {
+    const word = expectedBool ? 'true' : 'false';
+    let matched = true;
+    for (let i = 0; i < word.length; i++) {
+      if (this.peekAt(i).toLowerCase() !== word[i].toLowerCase()) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
+      this.pos += word.length;
+    } else {
+      this.consume();
+    }
+    return new LLSD(expectedBool);
+  }
+
+  private parseNumberWord(): string {
+    const start = this.pos;
+    while (this.pos < this.text.length) {
+      const c = this.text[this.pos];
+      if (/\s/.test(c) || c === ',' || c === '}' || c === ']') {
+        break;
+      }
+      this.pos++;
+    }
+    return this.text.substring(start, this.pos);
+  }
+
+  private parseUuidLiteral(): string {
+    const start = this.pos;
+    const end = Math.min(start + 36, this.text.length);
+    this.pos = end;
+    return this.text.substring(start, end);
+  }
+
+  private parseQuotedAfterTag(): string {
+    this.skipWs();
+    const c = this.peek();
+    if (c === '"') return this.parseDoubleQuoted();
+    if (c === "'") return this.parseSingleQuoted();
+    return '';
+  }
+
+  private parseDoubleQuoted(): string {
+    if (this.peek() !== '"') return '';
+    this.consume();
+    let sb = '';
+    while (this.pos < this.text.length && this.peek() !== '"') {
+      if (this.peek() === '\\' && this.pos + 1 < this.text.length) {
+        this.consume();
+        sb += this.decodeEscape(this.consume());
+      } else {
+        sb += this.consume();
+      }
+    }
+    if (this.pos < this.text.length) this.consume();
+    return sb;
+  }
+
+  private parseSingleQuoted(): string {
+    if (this.peek() !== "'") return '';
+    this.consume();
+    let sb = '';
+    while (this.pos < this.text.length && this.peek() !== "'") {
+      if (this.peek() === '\\' && this.pos + 1 < this.text.length) {
+        this.consume();
+        sb += this.decodeEscape(this.consume());
+      } else {
+        sb += this.consume();
+      }
+    }
+    if (this.pos < this.text.length) this.consume();
+    return sb;
+  }
+
+  private decodeEscape(c: string): string {
+    switch (c) {
+      case 'n': return '\n';
+      case 't': return '\t';
+      case 'r': return '\r';
+      default: return c;
+    }
+  }
+
+  private parseSizedString(): LLSD {
+    this.consume(); // 's'
+    if (this.peek() === '(') {
+      this.consume(); // '('
+      const start = this.pos;
+      while (this.pos < this.text.length && this.peek() !== ')') this.pos++;
+      const size = parseInt(this.text.substring(start, this.pos), 10) || 0;
+      if (this.pos < this.text.length) this.consume(); // ')'
+      if (this.pos < this.text.length && (this.peek() === '"' || this.peek() === "'")) {
+        this.consume();
+      }
+      const end = Math.min(this.pos + size, this.text.length);
+      const str = this.text.substring(this.pos, end);
+      this.pos = end;
+      if (this.pos < this.text.length && (this.peek() === '"' || this.peek() === "'")) {
+        this.consume();
+      }
+      return new LLSD(str);
+    }
+    if (this.peek() === '"') return new LLSD(this.parseDoubleQuoted());
+    if (this.peek() === "'") return new LLSD(this.parseSingleQuoted());
+    return new LLSD('');
+  }
+
+  private parseBinaryNotation(): LLSD {
+    this.consume(); // 'b'
+    const p0 = this.peekAt(0);
+    const p1 = this.peekAt(1);
+
+    if (p0 === '6' && p1 === '4') {
+      this.pos += 2;
+      const dataStr = this.parseQuotedAfterTag();
+      try {
+        return new LLSD(new Uint8Array(Buffer.from(dataStr, 'base64')));
+      } catch {
+        return new LLSD(new Uint8Array(0));
+      }
+    }
+    if (p0 === '1' && p1 === '6') {
+      this.pos += 2;
+      const hexStr = this.parseQuotedAfterTag();
+      return new LLSD(this.hexDecode(hexStr));
+    }
+    if (p0 === '(') {
+      this.consume(); // '('
+      const start = this.pos;
+      while (this.pos < this.text.length && this.peek() !== ')') this.pos++;
+      const size = parseInt(this.text.substring(start, this.pos), 10) || 0;
+      if (this.pos < this.text.length) this.consume(); // ')'
+      if (this.pos < this.text.length && (this.peek() === '"' || this.peek() === "'")) {
+        this.consume();
+      }
+      const end = Math.min(this.pos + size, this.text.length);
+      const bytes = new Uint8Array(end - this.pos);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = this.text.charCodeAt(this.pos + i);
+      }
+      this.pos = end;
+      if (this.pos < this.text.length && (this.peek() === '"' || this.peek() === "'")) {
+        this.consume();
+      }
+      return new LLSD(bytes);
+    }
+    return new LLSD(new Uint8Array(0));
+  }
+
+  private hexDecode(hex: string): Uint8Array {
+    const clean = hex.replace(/\s+/g, '');
+    const bytes = new Uint8Array(Math.floor(clean.length / 2));
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(clean.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+  }
+
+  private parseMap(): LLSD {
+    this.consume(); // '{'
+    const map = new Map<string, LLSD>();
+    this.skipWs();
+    while (this.pos < this.text.length && this.peek() !== '}') {
+      this.skipWs();
+      if (this.peek() === '}') break;
+      const ch = this.peek();
+      let key = '';
+      if (ch === "'") {
+        key = this.parseSingleQuoted();
+      } else if (ch === '"') {
+        key = this.parseDoubleQuoted();
+      } else if (ch === 's') {
+        key = this.parseSizedString().asString();
+      } else {
+        key = this.parseNumberWord();
+      }
+      this.skipWs();
+      if (this.peek() === ':') this.consume();
+      this.skipWs();
+      const val = this.parseValue();
+      map.set(key, val);
+      this.skipWs();
+      if (this.peek() === ',') this.consume();
+      this.skipWs();
+    }
+    if (this.pos < this.text.length && this.peek() === '}') this.consume();
+    return new LLSD(map);
+  }
+
+  private parseArray(): LLSD {
+    this.consume(); // '['
+    const list: LLSD[] = [];
+    this.skipWs();
+    while (this.pos < this.text.length && this.peek() !== ']') {
+      this.skipWs();
+      if (this.peek() === ']') break;
+      const val = this.parseValue();
+      list.push(val);
+      this.skipWs();
+      if (this.peek() === ',') this.consume();
+      this.skipWs();
+    }
+    if (this.pos < this.text.length && this.peek() === ']') this.consume();
+    return new LLSD(list);
   }
 }

@@ -130,6 +130,16 @@ export class LLSD {
     return new Uint8Array(0);
   }
 
+  public asMap(): Map<string, LLSD> {
+    if (this.type === LLSDType.Map) return this.value as Map<string, LLSD>;
+    return new Map<string, LLSD>();
+  }
+
+  public asArray(): LLSD[] {
+    if (this.type === LLSDType.Array) return this.value as LLSD[];
+    return [];
+  }
+
   public get(keyOrIndex: string | number): LLSD {
     if (this.type === LLSDType.Map && typeof keyOrIndex === 'string') {
       return (this.value as Map<string, LLSD>).get(keyOrIndex) || LLSD.undefined;

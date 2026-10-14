@@ -15,17 +15,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Generate Language Bindings
         run: python3 scripts/generate_bindings.py
       - name: Run Schema Conformance Tests
         run: python3 tests/conformance_test.py
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - name: Run TypeScript Tests
         run: |
-          cd bindings/typescript
+          cd typescript
+          npm install
+          npm test
+          cd ../bindings/typescript
           npm install
           npm run test:source
   build:
