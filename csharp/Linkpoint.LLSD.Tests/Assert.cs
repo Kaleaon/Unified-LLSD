@@ -23,6 +23,14 @@ namespace Linkpoint.LLSD.Tests
             }
         }
 
+        public static void NotNull(object? obj, string? message = null)
+        {
+            if (obj == null)
+            {
+                throw new Exception($"Assert.NotNull failed. {message}");
+            }
+        }
+
         public static void Equal<T>(T expected, T actual, string? message = null)
         {
             if (expected is byte[] expBytes && actual is byte[] actBytes)
