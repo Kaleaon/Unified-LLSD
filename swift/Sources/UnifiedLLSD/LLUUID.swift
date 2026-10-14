@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LLUUID: Equatable, Hashable, CustomStringConvertible {
+public struct LLUUID: Equatable, Hashable, CustomStringConvertible, Codable {
     public var bytes: [UInt8]
 
     public static let null = LLUUID(bytes: [UInt8](repeating: 0, count: 16))
