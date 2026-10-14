@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LLUUID: Equatable, Hashable, CustomStringConvertible {
+public struct LLUUID: Equatable, Hashable, Codable, CustomStringConvertible {
     public var bytes: [UInt8]
 
     public static let null = LLUUID(bytes: [UInt8](repeating: 0, count: 16))
@@ -14,20 +14,51 @@ public struct LLUUID: Equatable, Hashable, CustomStringConvertible {
     }
 
     public init?(string: String) {
-        let clean = string.replacingOccurrences(of: "-", with: "")
-            .replacingOccurrences(of: "{", with: "")
-            .replacingOccurrences(of: "}", with: "")
-        guard clean.count == 32 else { return nil }
-
         var result = [UInt8]()
         result.reserveCapacity(16)
-        var index = clean.startIndex
-        for _ in 0..<16 {
-            let nextIndex = clean.index(index, offsetBy: 2)
-            guard let byte = UInt8(clean[index..<nextIndex], radix: 16) else { return nil }
-            result.append(byte)
-            index = nextIndex
+
+        var highNibble: UInt8? = nil
+
+        for byte in string.utf8 {
+            switch byte {
+            case 0x2D, 0x7B, 0x7D: // '-', '{', '}'
+                continue
+            case 0x30...0x39: // '0'...'9'
+                let val = byte - 0x30
+                if let high = highNibble {
+                    if result.count == 16 { return nil }
+                    result.append((high << 4) | val)
+                    highNibble = nil
+                } else {
+                    highNibble = val
+                }
+            case 0x61...0x66: // 'a'...'f'
+                let val = byte - 0x61 + 10
+                if let high = highNibble {
+                    if result.count == 16 { return nil }
+                    result.append((high << 4) | val)
+                    highNibble = nil
+                } else {
+                    highNibble = val
+                }
+            case 0x41...0x46: // 'A'...'F'
+                let val = byte - 0x41 + 10
+                if let high = highNibble {
+                    if result.count == 16 { return nil }
+                    result.append((high << 4) | val)
+                    highNibble = nil
+                } else {
+                    highNibble = val
+                }
+            default:
+                return nil
+            }
         }
+
+        if highNibble != nil || result.count != 16 {
+            return nil
+        }
+
         self.bytes = result
     }
 

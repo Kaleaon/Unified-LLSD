@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LLDate: Equatable, Hashable, CustomStringConvertible {
+public struct LLDate: Equatable, Hashable, Codable, CustomStringConvertible {
     public var secondsSinceEpoch: Double
 
     public static let null = LLDate(secondsSinceEpoch: 0.0)
