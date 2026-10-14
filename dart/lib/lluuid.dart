@@ -35,11 +35,16 @@ class LLUUID {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LLUUID &&
-          bytes.length == other.bytes.length &&
-          Iterable.generate(16).every((i) => bytes[i] == other.bytes[i]);
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! LLUUID) return false;
+    final otherBytes = other.bytes;
+    if (bytes.length != otherBytes.length) return false;
+    for (var i = 0; i < 16; i++) {
+      if (bytes[i] != otherBytes[i]) return false;
+    }
+    return true;
+  }
 
   @override
   int get hashCode => Object.hashAll(bytes);
