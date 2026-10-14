@@ -7,42 +7,82 @@ public struct LLSDSerialize {
 
     // --- XML ---
     public static func toXML(_ sd: LLSD, withDeclaration: Bool = false) -> String {
-        var xml = withDeclaration ? xmlHeader : ""
-        xml += "<llsd>"
-        xml += writeXmlElement(sd)
-        xml += "</llsd>"
+        var xml = ""
+        xml.reserveCapacity(256)
+        if withDeclaration {
+            xml.append(xmlHeader)
+        }
+        xml.append("<llsd>")
+        writeXmlElement(sd, into: &xml)
+        xml.append("</llsd>")
         return xml
     }
 
-    private static func writeXmlElement(_ sd: LLSD) -> String {
+    private static func writeXmlElement(_ sd: LLSD, into xml: inout String) {
         switch sd {
-        case .undefined: return "<undef/>"
-        case .boolean(let b): return "<boolean>\(b ? "true" : "false")</boolean>"
-        case .integer(let i): return "<integer>\(i)</integer>"
+        case .undefined:
+            xml.append("<undef/>")
+        case .boolean(let b):
+            xml.append("<boolean>")
+            xml.append(b ? "true" : "false")
+            xml.append("</boolean>")
+        case .integer(let i):
+            xml.append("<integer>")
+            xml.append(String(i))
+            xml.append("</integer>")
         case .real(let r):
-            if r.isNaN { return "<real>nan</real>" }
-            if r.isInfinite { return "<real>\(r > 0 ? "inf" : "-inf")</real>" }
-            return "<real>\(r)</real>"
-        case .string(let s): return s.isEmpty ? "<string/>" : "<string>\(s)</string>"
-        case .uuid(let u): return u.isNull ? "<uuid/>" : "<uuid>\(u.description)</uuid>"
-        case .date(let d): return "<date>\(d.description)</date>"
-        case .uri(let u): return "<uri>\(u.description)</uri>"
-        case .binary(let b): return "<binary encoding=\"base64\">\(b.base64EncodedString())</binary>"
+            xml.append("<real>")
+            if r.isNaN {
+                xml.append("nan")
+            } else if r.isInfinite {
+                xml.append(r > 0 ? "inf" : "-inf")
+            } else {
+                xml.append(String(r))
+            }
+            xml.append("</real>")
+        case .string(let s):
+            if s.isEmpty {
+                xml.append("<string/>")
+            } else {
+                xml.append("<string>")
+                xml.append(s)
+                xml.append("</string>")
+            }
+        case .uuid(let u):
+            if u.isNull {
+                xml.append("<uuid/>")
+            } else {
+                xml.append("<uuid>")
+                xml.append(u.description)
+                xml.append("</uuid>")
+            }
+        case .date(let d):
+            xml.append("<date>")
+            xml.append(d.description)
+            xml.append("</date>")
+        case .uri(let u):
+            xml.append("<uri>")
+            xml.append(u.description)
+            xml.append("</uri>")
+        case .binary(let b):
+            xml.append("<binary encoding=\"base64\">")
+            xml.append(b.base64EncodedString())
+            xml.append("</binary>")
         case .map(let m):
-            var res = "<map>"
+            xml.append("<map>")
             for (k, v) in m {
-                res += "<key>\(k)</key>"
-                res += writeXmlElement(v)
+                xml.append("<key>")
+                xml.append(k)
+                xml.append("</key>")
+                writeXmlElement(v, into: &xml)
             }
-            res += "</map>"
-            return res
+            xml.append("</map>")
         case .array(let a):
-            var res = "<array>"
+            xml.append("<array>")
             for v in a {
-                res += writeXmlElement(v)
+                writeXmlElement(v, into: &xml)
             }
-            res += "</array>"
-            return res
+            xml.append("</array>")
         }
     }
 
