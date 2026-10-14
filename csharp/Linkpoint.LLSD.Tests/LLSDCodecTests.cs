@@ -135,5 +135,49 @@ namespace Linkpoint.LLSD.Tests
             Assert.Equal("Avatar \"Linkpoint\"", decoded["name"].AsString());
             Assert.Equal(2, decoded["list"].Count);
         }
+
+        [Fact]
+        public void TestHexDecoderValidDecoding()
+        {
+            byte[] expected = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+
+            Assert.Equal(expected, HexDecoder.Decode("01020304056789abcdef"));
+            Assert.Equal(expected, HexDecoder.Decode("01020304056789ABCDEF"));
+            Assert.Equal(expected, HexDecoder.Decode("01020304056789aBcDeF"));
+
+            Assert.Equal(new byte[] { 0x00 }, HexDecoder.Decode("00"));
+            Assert.Equal(new byte[] { 0xFF }, HexDecoder.Decode("ff"));
+            Assert.Equal(new byte[] { 0xFF }, HexDecoder.Decode("FF"));
+        }
+
+        [Fact]
+        public void TestHexDecoderInvalidAndEdgeCases()
+        {
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode((string?)null));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode(""));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode("1"));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode("123"));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode("123g"));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode("12 34"));
+            Assert.Equal(Array.Empty<byte>(), HexDecoder.Decode("123\u0100"));
+        }
+
+        [Fact]
+        public void TestXmlBase16BinaryDecoding()
+        {
+            string xml = "<llsd><binary encoding=\"base16\">00112233aabbccddeeff</binary></llsd>";
+            var val = LLSDSerialize.FromXML(xml);
+            byte[] expected = new byte[] { 0x00, 0x11, 0x22, 0x33, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+            Assert.Equal(expected, val.AsBinary());
+        }
+
+        [Fact]
+        public void TestNotationBase16BinaryDecoding()
+        {
+            string notation = "b16\"00112233aabbccddeeff\"";
+            var val = LLSDSerialize.FromNotation(notation);
+            byte[] expected = new byte[] { 0x00, 0x11, 0x22, 0x33, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+            Assert.Equal(expected, val.AsBinary());
+        }
     }
 }

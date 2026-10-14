@@ -227,7 +227,7 @@ namespace Linkpoint.LLSD.Codecs
 
                     byte[] bytes = encoding.ToLowerInvariant() switch
                     {
-                        "base16" => parseHex(binText),
+                        "base16" => HexDecoder.Decode(binText),
                         _ => Convert.FromBase64String(binText)
                     };
                     return LLSDValue.FromBinary(bytes);
@@ -309,17 +309,6 @@ namespace Linkpoint.LLSD.Codecs
                 "-inf" or "-infinity" => double.NegativeInfinity,
                 _ => double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : 0.0
             };
-        }
-
-        private static byte[] parseHex(string hex)
-        {
-            if (hex.Length % 2 != 0) return Array.Empty<byte>();
-            byte[] bytes = new byte[hex.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                bytes[i] = byte.Parse(hex.Substring(i * 2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-            }
-            return bytes;
         }
     }
 }
