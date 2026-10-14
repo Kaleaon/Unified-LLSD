@@ -46,6 +46,33 @@ int main() {
     assert(backNotation["int"].asInteger64() == bigInt);
     assert(backNotation["str"].asString() == "hello world");
 
+    // Test 6: LLUUID Positional Parsing
+    std::string canonicalStr = "550e8400-e29b-41d4-a716-446655440000";
+    llsd::LLUUID u1(canonicalStr);
+    assert(u1.notNull());
+    assert(u1.toString() == canonicalStr);
+
+    std::string bracedStr = "{550e8400-e29b-41d4-a716-446655440000}";
+    llsd::LLUUID u2(bracedStr);
+    assert(u2.notNull());
+    assert(u2 == u1);
+
+    std::string rawHexStr = "550e8400e29b41d4a716446655440000";
+    llsd::LLUUID u3(rawHexStr);
+    assert(u3.notNull());
+    assert(u3 == u1);
+
+    // Test Null / Invalid UUIDs
+    llsd::LLUUID nullUuid("00000000-0000-0000-0000-000000000000");
+    assert(nullUuid.isNull());
+
+    assert(llsd::LLUUID("invalid-uuid-string").isNull());
+    assert(llsd::LLUUID("550e8400-e29b-41d4-a716-44665544000").isNull()); // 35 chars
+    assert(llsd::LLUUID("550e8400-e29b-41d4-a716-4466554400001").isNull()); // 37 chars
+    assert(llsd::LLUUID("550e8400e29b-41d4-a716-446655440000").isNull()); // misplaced hyphen
+    assert(llsd::LLUUID("550e8400-e29g-41d4-a716-446655440000").isNull()); // non-hex char
+    assert(llsd::LLUUID("{550e8400-e29b-41d4-a716-446655440000!").isNull()); // bad brace
+
     std::cout << "All C++ LLSD Conformance Tests Passed!" << std::endl;
     return 0;
 }
