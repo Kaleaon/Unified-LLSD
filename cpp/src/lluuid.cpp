@@ -8,6 +8,13 @@ namespace llsd {
 
 const LLUUID LLUUID::null;
 
+static inline int hexNibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
 LLUUID::LLUUID() {
     mData.fill(0);
 }
@@ -16,16 +23,50 @@ LLUUID::LLUUID(const std::array<uint8_t, 16>& bytes) : mData(bytes) {}
 
 LLUUID::LLUUID(const std::string& str) {
     mData.fill(0);
-    std::string clean;
-    for (char c : str) {
-        if (c != '-' && c != '{' && c != '}') clean.push_back(c);
+    const size_t len = str.size();
+    size_t cur_pos = 0;
+    bool has_hyphens = false;
+
+    if (len == 36) {
+        cur_pos = 0;
+        has_hyphens = true;
+    } else if (len == 38) {
+        if (str[0] != '{' || str[37] != '}') {
+            return;
+        }
+        cur_pos = 1;
+        has_hyphens = true;
+    } else if (len == 34) {
+        if (str[0] != '{' || str[33] != '}') {
+            return;
+        }
+        cur_pos = 1;
+        has_hyphens = false;
+    } else if (len == 32) {
+        cur_pos = 0;
+        has_hyphens = false;
+    } else {
+        return;
     }
-    if (clean.size() != 32) return;
 
     for (size_t i = 0; i < 16; ++i) {
-        std::string byteString = clean.substr(i * 2, 2);
-        char* end = nullptr;
-        mData[i] = static_cast<uint8_t>(std::strtoul(byteString.c_str(), &end, 16));
+        if (has_hyphens && (i == 4 || i == 6 || i == 8 || i == 10)) {
+            if (str[cur_pos] != '-') {
+                mData.fill(0);
+                return;
+            }
+            ++cur_pos;
+        }
+
+        int n1 = hexNibble(str[cur_pos]);
+        int n2 = hexNibble(str[cur_pos + 1]);
+        if (n1 < 0 || n2 < 0) {
+            mData.fill(0);
+            return;
+        }
+
+        mData[i] = static_cast<uint8_t>((n1 << 4) | n2);
+        cur_pos += 2;
     }
 }
 
