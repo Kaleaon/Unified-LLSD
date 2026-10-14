@@ -63,6 +63,33 @@ fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+fn skip_xml_junk(xml: &str, pos: &mut usize) {
+    while *pos < xml.len() {
+        let rest = &xml[*pos..];
+        if rest.starts_with("<!--") {
+            if let Some(end) = rest.find("-->") {
+                *pos += end + 3;
+            } else {
+                *pos = xml.len();
+                break;
+            }
+        } else if rest.starts_with("<?") {
+            if let Some(end) = rest.find("?>") {
+                *pos += end + 2;
+            } else if let Some(end) = rest.find('>') {
+                *pos += end + 1;
+            } else {
+                *pos = xml.len();
+                break;
+            }
+        } else if rest.as_bytes()[0].is_ascii_whitespace() {
+            *pos += 1;
+        } else {
+            break;
+        }
+    }
+}
+
 pub fn from_xml(xml: &str) -> Llsd {
     let clean = xml.trim();
     if clean.is_empty() { return Llsd::Undefined; }
@@ -71,95 +98,196 @@ pub fn from_xml(xml: &str) -> Llsd {
 }
 
 fn parse_xml_node(xml: &str, pos: &mut usize) -> Llsd {
-    // Find next '<'
-    while *pos < xml.len() {
-        if let Some(open) = xml[*pos..].find('<') {
-            *pos += open;
-            if xml[*pos..].starts_with("<?") || xml[*pos..].starts_with("<!--") {
-                if let Some(close) = xml[*pos..].find('>') {
-                    *pos += close + 1;
-                    continue;
+    skip_xml_junk(xml, pos);
+    if *pos >= xml.len() {
+        return Llsd::Undefined;
+    }
+
+    if !xml[*pos..].starts_with('<') {
+        return Llsd::Undefined;
+    }
+
+    if xml[*pos..].starts_with("</") {
+        return Llsd::Undefined;
+    }
+
+    let close = match xml[*pos..].find('>') {
+        Some(c) => c,
+        None => {
+            *pos = xml.len();
+            return Llsd::Undefined;
+        }
+    };
+
+    let tag_header = &xml[*pos + 1..*pos + close];
+    let self_closing = tag_header.trim_end().ends_with('/');
+    let clean_header = tag_header.trim_end_matches('/').trim();
+    let mut parts = clean_header.split_whitespace();
+    let tag_name = parts.next().unwrap_or("");
+
+    *pos += close + 1;
+
+    if tag_name == "llsd" {
+        if self_closing {
+            return Llsd::Undefined;
+        }
+        let val = parse_xml_node(xml, pos);
+        skip_xml_junk(xml, pos);
+        if *pos < xml.len() && xml[*pos..].starts_with("</") {
+            if let Some(c) = xml[*pos..].find('>') {
+                let close_name = xml[*pos + 2..*pos + c].trim();
+                if close_name == "llsd" {
+                    *pos += c + 1;
                 }
             }
-            // Parse tag
-            if let Some(close) = xml[*pos..].find('>') {
-                let tag_header = &xml[*pos + 1..*pos + close];
-                let self_closing = tag_header.ends_with('/');
-                let clean_header = tag_header.trim_end_matches('/');
-                let mut parts = clean_header.split_whitespace();
-                let tag_name = parts.next().unwrap_or("");
-
-                *pos += close + 1;
-
-                if tag_name == "llsd" {
-                    return parse_xml_node(xml, pos);
-                } else if tag_name == "undef" {
-                    return Llsd::Undefined;
-                }
-
-                let content = if self_closing {
-                    ""
-                } else {
-                    let end_tag = format!("</{}>", tag_name);
-                    if let Some(end_pos) = xml[*pos..].find(&end_tag) {
-                        let c = &xml[*pos..*pos + end_pos];
-                        *pos += end_pos + end_tag.len();
-                        c
-                    } else {
-                        ""
-                    }
-                };
-
-                return match tag_name {
-                    "boolean" => {
-                        let t = content.trim().to_lowercase();
-                        Llsd::Boolean(t == "true" || t == "1" || t == "t")
-                    },
-                    "integer" => Llsd::Integer(content.trim().parse().unwrap_or(0)),
-                    "real" => {
-                        let t = content.trim().to_lowercase();
-                        if t == "nan" { Llsd::Real(f64::NAN) }
-                        else if t == "inf" || t == "+inf" { Llsd::Real(f64::INFINITY) }
-                        else if t == "-inf" { Llsd::Real(f64::NEG_INFINITY) }
-                        else { Llsd::Real(t.parse().unwrap_or(0.0)) }
-                    },
-                    "string" => Llsd::String(content.to_string()),
-                    "uuid" => Llsd::Uuid(LlUuid::from_string(content.trim()).unwrap_or(LlUuid::NULL)),
-                    "date" => Llsd::Date(LlDate::from_iso_string(content.trim()).unwrap_or(LlDate::NULL)),
-                    "uri" => Llsd::Uri(LlUri::new(content.trim())),
-                    "binary" => Llsd::Binary(base64_decode(content.trim())),
-                    "map" => {
-                        let mut map = BTreeMap::new();
-                        let mut inner_pos = 0;
-                        while inner_pos < content.len() {
-                            if let Some(k_start) = content[inner_pos..].find("<key>") {
-                                inner_pos += k_start + 5;
-                                if let Some(k_end) = content[inner_pos..].find("</key>") {
-                                    let key = &content[inner_pos..inner_pos + k_end];
-                                    inner_pos += k_end + 6;
-                                    let val = parse_xml_node(content, &mut inner_pos);
-                                    map.insert(key.to_string(), val);
-                                } else { break; }
-                            } else { break; }
-                        }
-                        Llsd::Map(map)
-                    },
-                    "array" => {
-                        let mut arr = Vec::new();
-                        let mut inner_pos = 0;
-                        while inner_pos < content.len() {
-                            if content[inner_pos..].contains('<') {
-                                arr.push(parse_xml_node(content, &mut inner_pos));
-                            } else { break; }
-                        }
-                        Llsd::Array(arr)
-                    },
-                    _ => Llsd::Undefined,
-                };
-            } else { break; }
-        } else { break; }
+        }
+        return val;
     }
-    Llsd::Undefined
+
+    if tag_name == "undef" {
+        return Llsd::Undefined;
+    }
+
+    if tag_name == "map" {
+        if self_closing {
+            return Llsd::Map(BTreeMap::new());
+        }
+        let mut map = BTreeMap::new();
+        while *pos < xml.len() {
+            skip_xml_junk(xml, pos);
+            if *pos >= xml.len() {
+                break;
+            }
+
+            if xml[*pos..].starts_with("</") {
+                if let Some(c) = xml[*pos..].find('>') {
+                    let close_name = xml[*pos + 2..*pos + c].trim();
+                    if close_name == "map" {
+                        *pos += c + 1;
+                    }
+                }
+                break;
+            }
+
+            if !xml[*pos..].starts_with('<') {
+                break;
+            }
+
+            let key_close = match xml[*pos..].find('>') {
+                Some(c) => c,
+                None => {
+                    *pos = xml.len();
+                    break;
+                }
+            };
+
+            let key_tag_header = &xml[*pos + 1..*pos + key_close];
+            let key_self_closing = key_tag_header.trim_end().ends_with('/');
+            let key_clean = key_tag_header.trim_end_matches('/').trim();
+            let key_tag_name = key_clean.split_whitespace().next().unwrap_or("");
+
+            if key_tag_name != "key" {
+                *pos += key_close + 1;
+                break;
+            }
+
+            *pos += key_close + 1;
+
+            let key = if key_self_closing {
+                String::new()
+            } else if let Some(end_k) = xml[*pos..].find("</") {
+                let k_str = &xml[*pos..*pos + end_k];
+                *pos += end_k;
+                if let Some(c) = xml[*pos..].find('>') {
+                    *pos += c + 1;
+                } else {
+                    *pos = xml.len();
+                }
+                k_str.to_string()
+            } else {
+                let k_str = &xml[*pos..];
+                *pos = xml.len();
+                k_str.to_string()
+            };
+
+            let val = parse_xml_node(xml, pos);
+            map.insert(key, val);
+        }
+        return Llsd::Map(map);
+    }
+
+    if tag_name == "array" {
+        if self_closing {
+            return Llsd::Array(Vec::new());
+        }
+        let mut arr = Vec::new();
+        while *pos < xml.len() {
+            skip_xml_junk(xml, pos);
+            if *pos >= xml.len() {
+                break;
+            }
+
+            if xml[*pos..].starts_with("</") {
+                if let Some(c) = xml[*pos..].find('>') {
+                    let close_name = xml[*pos + 2..*pos + c].trim();
+                    if close_name == "array" {
+                        *pos += c + 1;
+                    }
+                }
+                break;
+            }
+
+            if !xml[*pos..].starts_with('<') {
+                break;
+            }
+
+            let start_pos = *pos;
+            let val = parse_xml_node(xml, pos);
+            if *pos == start_pos {
+                break;
+            }
+            arr.push(val);
+        }
+        return Llsd::Array(arr);
+    }
+
+    let content = if self_closing {
+        ""
+    } else if let Some(end_pos) = xml[*pos..].find("</") {
+        let c = &xml[*pos..*pos + end_pos];
+        *pos += end_pos;
+        if let Some(close_end) = xml[*pos..].find('>') {
+            *pos += close_end + 1;
+        } else {
+            *pos = xml.len();
+        }
+        c
+    } else {
+        let c = &xml[*pos..];
+        *pos = xml.len();
+        c
+    };
+
+    match tag_name {
+        "boolean" => {
+            let t = content.trim().to_lowercase();
+            Llsd::Boolean(t == "true" || t == "1" || t == "t")
+        },
+        "integer" => Llsd::Integer(content.trim().parse().unwrap_or(0)),
+        "real" => {
+            let t = content.trim().to_lowercase();
+            if t == "nan" { Llsd::Real(f64::NAN) }
+            else if t == "inf" || t == "+inf" { Llsd::Real(f64::INFINITY) }
+            else if t == "-inf" { Llsd::Real(f64::NEG_INFINITY) }
+            else { Llsd::Real(t.parse().unwrap_or(0.0)) }
+        },
+        "string" => Llsd::String(content.to_string()),
+        "uuid" => Llsd::Uuid(LlUuid::from_string(content.trim()).unwrap_or(LlUuid::NULL)),
+        "date" => Llsd::Date(LlDate::from_iso_string(content.trim()).unwrap_or(LlDate::NULL)),
+        "uri" => Llsd::Uri(LlUri::new(content.trim())),
+        "binary" => Llsd::Binary(base64_decode(content.trim())),
+        _ => Llsd::Undefined,
+    }
 }
 
 // --- Binary ---
