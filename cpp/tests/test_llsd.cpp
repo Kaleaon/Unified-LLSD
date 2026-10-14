@@ -62,6 +62,11 @@ int main() {
     assert(u3.notNull());
     assert(u3 == u1);
 
+    std::string bracedRawHexStr = "{550e8400e29b41d4a716446655440000}";
+    llsd::LLUUID u4(bracedRawHexStr);
+    assert(u4.notNull());
+    assert(u4 == u1);
+
     // Test Null / Invalid UUIDs
     llsd::LLUUID nullUuid("00000000-0000-0000-0000-000000000000");
     assert(nullUuid.isNull());

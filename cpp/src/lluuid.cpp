@@ -36,6 +36,12 @@ LLUUID::LLUUID(const std::string& str) {
         }
         cur_pos = 1;
         has_hyphens = true;
+    } else if (len == 34) {
+        if (str[0] != '{' || str[33] != '}') {
+            return;
+        }
+        cur_pos = 1;
+        has_hyphens = false;
     } else if (len == 32) {
         cur_pos = 0;
         has_hyphens = false;
