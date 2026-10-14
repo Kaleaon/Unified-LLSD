@@ -95,6 +95,55 @@ test('LLSD Multi-Format Serialization & Auto-Detect', () => {
     assert.equal(autoParsed.get('balance').asInteger(), 250);
 });
 
+test('LLSD Two-Pass Direct Single-Buffer Binary Encoding', () => {
+    const uuidStr = '12345678-1234-1234-1234-123456789abc';
+    const uriStr = 'https://secondlife.com/api';
+    const testDate = new LLSDDate('2026-10-14T10:00:00Z');
+
+    const complex = LLSDValue.map({
+        flag_true: LLSDValue.boolean(true),
+        flag_false: LLSDValue.boolean(false),
+        num_int: LLSDValue.integer(123456),
+        num_real: LLSDValue.real(3.1415926535),
+        uuid_val: LLSDValue.uuid(uuidStr),
+        date_val: LLSDValue.date(testDate),
+        uri_val: LLSDValue.uri(uriStr),
+        unicode_str: LLSDValue.string('Avatar 世界 😀'),
+        empty_map: LLSDValue.map({}),
+        empty_arr: LLSDValue.array([]),
+        item_list: LLSDValue.array([
+            LLSDValue.integer(1),
+            LLSDValue.string('nested'),
+            LLSDValue.boolean(true)
+        ])
+    });
+
+    const bodySize = LLSDSerialize.calculateBinarySize(complex);
+    const binaryBytes = LLSDSerialize.toBinary(complex);
+
+    // Header length is 16 ("<?llsd/binary?>\n")
+    assert.equal(binaryBytes.length, 16 + bodySize);
+
+    // Verify roundtrip deserialization
+    const decoded = LLSDSerialize.fromBinary(binaryBytes);
+    assert.equal(decoded.get('flag_true').asBoolean(), true);
+    assert.equal(decoded.get('flag_false').asBoolean(), false);
+    assert.equal(decoded.get('num_int').asInteger(), 123456);
+    assert.ok(Math.abs(decoded.get('num_real').asReal() - 3.1415926535) < 0.000001);
+    assert.equal(decoded.get('uuid_val').asUUID().toString(), uuidStr);
+    assert.ok(Math.abs(decoded.get('date_val').asDate().getSecondsSinceEpoch() - testDate.getSecondsSinceEpoch()) < 0.001);
+    assert.equal(decoded.get('uri_val').asURI().toString(), uriStr);
+    assert.equal(decoded.get('unicode_str').asString(), 'Avatar 世界 😀');
+    assert.equal(decoded.get('empty_map').asMap.size, 0);
+    assert.equal(decoded.get('empty_arr').asArray.length, 0);
+
+    const arr = decoded.get('item_list').asArray;
+    assert.equal(arr.length, 3);
+    assert.equal(arr[0].asInteger(), 1);
+    assert.equal(arr[1].asString(), 'nested');
+    assert.equal(arr[2].asBoolean(), true);
+});
+
 test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     // Construct mock binary joint influence buffer with extended skeleton joint (>163) and 0xFF sentinel
     const mockBuffer = new Uint8Array([
