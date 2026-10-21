@@ -50,19 +50,16 @@ class TextureTransformAdapter {
 
   Float32List getPacked() {
     return Float32List.fromList([
-      scaleX,
-      scaleY,
-      rotation,
-      0.0,
-      offsetX,
-      offsetY,
-      0.0,
-      0.0,
+      scaleX, scaleY, rotation, 0.0,
+      offsetX, offsetY, 0.0, 0.0
     ]);
   }
 
   Float32List getPackedTight() {
-    return Float32List.fromList([scaleX, scaleY, rotation, offsetX, offsetY]);
+    return Float32List.fromList([
+      scaleX, scaleY, rotation,
+      offsetX, offsetY
+    ]);
   }
 }
 
