@@ -8,7 +8,12 @@ class LLDate {
   factory LLDate.fromISOString(String s) {
     if (s.isEmpty) return nullDate;
     try {
-      final dt = DateTime.parse(s).toUtc();
+      var clean = s.trim();
+      if (clean.endsWith('Z') &&
+          (clean.contains('+') || clean.indexOf('-', 10) != -1)) {
+        clean = clean.substring(0, clean.length - 1);
+      }
+      final dt = DateTime.parse(clean).toUtc();
       return LLDate(dt.millisecondsSinceEpoch / 1000.0);
     } catch (_) {
       return nullDate;

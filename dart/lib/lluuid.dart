@@ -4,6 +4,7 @@ class LLUUID {
   final Uint8List bytes;
 
   static final LLUUID nullUuid = LLUUID(Uint8List(16));
+  static LLUUID get zero => nullUuid;
 
   LLUUID(this.bytes) {
     if (bytes.length != 16) {
@@ -11,18 +12,29 @@ class LLUUID {
     }
   }
 
+  factory LLUUID.fromBytes(Uint8List bytes) =>
+      LLUUID(Uint8List.fromList(bytes));
+
   factory LLUUID.fromString(String s) {
-    final clean = s.replaceAll('-', '').replaceAll('{', '').replaceAll('}', '');
+    final clean =
+        s.replaceAll('-', '').replaceAll('{', '').replaceAll('}', '').trim();
     if (clean.length != 32) return nullUuid;
     final b = Uint8List(16);
     for (var i = 0; i < 16; i++) {
-      b[i] = int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16);
+      final parsed = int.tryParse(clean.substring(i * 2, i * 2 + 2), radix: 16);
+      if (parsed == null) return nullUuid;
+      b[i] = parsed;
     }
     return LLUUID(b);
   }
 
+  factory LLUUID.parse(String s) => LLUUID.fromString(s);
+
   bool get isNull => bytes.every((b) => b == 0);
   bool get notNull => !isNull;
+  bool get isZero => isNull;
+
+  Uint8List toBytes() => Uint8List.fromList(bytes);
 
   @override
   String toString() {
