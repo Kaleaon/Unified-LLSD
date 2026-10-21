@@ -10,6 +10,7 @@ add_library(llsd_cpp
     src/lluuid.cpp
     src/lldate.cpp
     src/lluri.cpp
+    src/network.cpp
 )
 
 target_include_directories(llsd_cpp PUBLIC

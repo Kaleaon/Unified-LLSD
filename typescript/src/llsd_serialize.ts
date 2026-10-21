@@ -8,6 +8,18 @@ export class LLSDSerialize {
   public static readonly notationHeader = "<? llsd/notation ?>\n";
   public static readonly xmlHeader = "<?xml version=\"1.0\" ?>\n";
 
+  public static parse(bytes: Uint8Array): LLSD {
+    if (!bytes || bytes.length === 0) return LLSD.undefined;
+    const str = new TextDecoder().decode(bytes);
+    if (str.startsWith('<?xml') || str.startsWith('<llsd>') || str.includes('<')) {
+      return this.fromXML(str);
+    }
+    if (str.startsWith('<? llsd/notation ?>') || str.startsWith('i') || str.startsWith('r') || str.startsWith("'")) {
+      return this.fromNotation(str);
+    }
+    return this.fromBinary(bytes);
+  }
+
   // --- XML ---
   public static toXML(sd: LLSD, withDeclaration = false): string {
     let xml = withDeclaration ? this.xmlHeader : '';
