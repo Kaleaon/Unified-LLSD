@@ -3,7 +3,8 @@
  */
 
 export class LLUUID {
-    public static readonly NULL = new LLUUID('00000000-0000-0000-0000-000000000000');
+    public static readonly nullUuid = new LLUUID('00000000-0000-0000-0000-000000000000');
+    public static readonly NULL = LLUUID.nullUuid;
     private readonly value: string;
 
     constructor(uuidStr?: string) {
@@ -54,6 +55,7 @@ export class LLUUID {
 }
 
 export class LLSDDate {
+    public static readonly nullDate = new LLSDDate(0);
     public readonly date: Date;
 
     constructor(dateInput?: Date | string | number) {
@@ -72,8 +74,12 @@ export class LLSDDate {
         return this.date.toISOString();
     }
 
-    public getSecondsSinceEpoch(): number {
+    public get secondsSinceEpoch(): number {
         return this.date.getTime() / 1000.0;
+    }
+
+    public getSecondsSinceEpoch(): number {
+        return this.secondsSinceEpoch;
     }
 }
 
@@ -85,6 +91,10 @@ export class LLSDURI {
     }
 
     public toString(): string {
+        return this.uri;
+    }
+
+    public asString(): string {
         return this.uri;
     }
 }
@@ -107,17 +117,26 @@ export class LLSDBinary {
 }
 
 export enum LLSDType {
-    UNDEFINED,
-    BOOLEAN,
-    INTEGER,
-    REAL,
-    STRING,
-    UUID,
-    DATE,
-    URI,
-    BINARY,
-    MAP,
-    ARRAY
+    UNDEFINED = 'undefined',
+    BOOLEAN = 'boolean',
+    INTEGER = 'integer',
+    REAL = 'real',
+    STRING = 'string',
+    UUID = 'uuid',
+    DATE = 'date',
+    URI = 'uri',
+    BINARY = 'binary',
+    MAP = 'map',
+    ARRAY = 'array'
+}
+
+export class LLSDException extends Error {
+    public readonly cause?: Error;
+    constructor(message: string, cause?: Error) {
+        super(message);
+        this.name = 'LLSDException';
+        this.cause = cause;
+    }
 }
 
 export class LLSDValue {
@@ -137,8 +156,8 @@ export class LLSDValue {
         return new LLSDValue(LLSDType.BOOLEAN, Boolean(val));
     }
 
-    public static integer(val: number): LLSDValue {
-        return new LLSDValue(LLSDType.INTEGER, Math.floor(val));
+    public static integer(val: number | bigint): LLSDValue {
+        return new LLSDValue(LLSDType.INTEGER, typeof val === 'bigint' ? val : Math.floor(val));
     }
 
     public static real(val: number): LLSDValue {
@@ -191,9 +210,14 @@ export class LLSDValue {
         return this.type === LLSDType.UNDEFINED;
     }
 
+    public get isDefined(): boolean {
+        return !this.isUndefined();
+    }
+
     public asBoolean(): boolean {
         if (this.type === LLSDType.BOOLEAN) return this.raw as boolean;
-        if (this.type === LLSDType.INTEGER || this.type === LLSDType.REAL) return this.raw !== 0;
+        if (this.type === LLSDType.INTEGER) return this.raw !== 0 && this.raw !== 0n;
+        if (this.type === LLSDType.REAL) return this.raw !== 0;
         if (this.type === LLSDType.STRING) {
             const lower = (this.raw as string).trim().toLowerCase();
             return lower === 'true' || lower === '1' || lower === 't';
@@ -202,7 +226,7 @@ export class LLSDValue {
     }
 
     public asInteger(): number {
-        if (this.type === LLSDType.INTEGER) return this.raw as number;
+        if (this.type === LLSDType.INTEGER) return Number(this.raw);
         if (this.type === LLSDType.REAL) return Math.floor(this.raw as number);
         if (this.type === LLSDType.BOOLEAN) return this.raw ? 1 : 0;
         if (this.type === LLSDType.STRING) {
@@ -212,11 +236,25 @@ export class LLSDValue {
         return 0;
     }
 
+    public asBigInt(): bigint {
+        if (this.type === LLSDType.INTEGER) return BigInt(this.raw);
+        if (this.type === LLSDType.BOOLEAN) return this.raw ? 1n : 0n;
+        if (this.type === LLSDType.REAL) return BigInt(Math.trunc(this.raw as number));
+        if (this.type === LLSDType.STRING) {
+            try { return BigInt(this.raw as string); } catch { return 0n; }
+        }
+        return 0n;
+    }
+
     public asReal(): number {
         if (this.type === LLSDType.REAL) return this.raw as number;
-        if (this.type === LLSDType.INTEGER) return this.raw as number;
+        if (this.type === LLSDType.INTEGER) return Number(this.raw);
         if (this.type === LLSDType.BOOLEAN) return this.raw ? 1.0 : 0.0;
         if (this.type === LLSDType.STRING) {
+            const lower = (this.raw as string).trim().toLowerCase();
+            if (lower === 'nan') return NaN;
+            if (lower === 'inf' || lower === '+inf') return Infinity;
+            if (lower === '-inf') return -Infinity;
             const parsed = parseFloat(this.raw as string);
             return isNaN(parsed) ? 0.0 : parsed;
         }
@@ -238,7 +276,7 @@ export class LLSDValue {
     public asUUID(): LLUUID {
         if (this.type === LLSDType.UUID) return this.raw as LLUUID;
         if (this.type === LLSDType.STRING) return new LLUUID(this.raw as string);
-        return LLUUID.NULL;
+        return LLUUID.nullUuid;
     }
 
     public asDate(): LLSDDate {
@@ -246,7 +284,7 @@ export class LLSDValue {
         if (this.type === LLSDType.STRING || this.type === LLSDType.REAL || this.type === LLSDType.INTEGER) {
             return new LLSDDate(this.raw);
         }
-        return new LLSDDate(0);
+        return LLSDDate.nullDate;
     }
 
     public asURI(): LLSDURI {
@@ -277,6 +315,16 @@ export class LLSDValue {
         return LLSDValue.undefined();
     }
 
+    public set(keyOrIndex: string | number, val: LLSDValue): void {
+        if (this.type === LLSDType.MAP && typeof keyOrIndex === 'string') {
+            (this.raw as Map<string, LLSDValue>).set(keyOrIndex, val);
+        } else if (this.type === LLSDType.ARRAY && typeof keyOrIndex === 'number') {
+            const arr = this.raw as LLSDValue[];
+            while (arr.length <= keyOrIndex) arr.push(LLSDValue.undefined());
+            arr[keyOrIndex] = val;
+        }
+    }
+
     public get asMap(): Map<string, LLSDValue> {
         if (this.type === LLSDType.MAP) return this.raw as Map<string, LLSDValue>;
         return new Map();
@@ -286,4 +334,77 @@ export class LLSDValue {
         if (this.type === LLSDType.ARRAY) return this.raw as LLSDValue[];
         return [];
     }
+
+    public getContent(): any {
+        switch (this.type) {
+            case LLSDType.UNDEFINED: return null;
+            case LLSDType.BOOLEAN: return this.asBoolean();
+            case LLSDType.INTEGER: return this.asInteger();
+            case LLSDType.REAL: return this.asReal();
+            case LLSDType.STRING: return this.asString();
+            case LLSDType.UUID: return this.asUUID().toString();
+            case LLSDType.DATE: return this.asDate().date;
+            case LLSDType.URI: return new URL(this.asURI().toString());
+            case LLSDType.BINARY: return this.asBinary().bytes;
+            case LLSDType.MAP: {
+                const res: Record<string, any> = {};
+                this.asMap.forEach((v, k) => {
+                    res[k] = v.getContent();
+                });
+                return res;
+            }
+            case LLSDType.ARRAY: {
+                return this.asArray.map(item => item.getContent());
+            }
+        }
+    }
 }
+
+export class LLSD extends LLSDValue {
+    constructor(val?: any, type?: LLSDType) {
+        if (val === undefined) {
+            super(LLSDType.UNDEFINED, null);
+        } else if (val instanceof LLSDValue) {
+            super(val.type, (val as any).raw);
+        } else if (type !== undefined) {
+            super(type, val);
+        } else if (val === null) {
+            super(LLSDType.UNDEFINED, null);
+        } else if (typeof val === 'boolean') {
+            super(LLSDType.BOOLEAN, val);
+        } else if (typeof val === 'bigint') {
+            super(LLSDType.INTEGER, val);
+        } else if (typeof val === 'number') {
+            super(Number.isInteger(val) ? LLSDType.INTEGER : LLSDType.REAL, val);
+        } else if (typeof val === 'string') {
+            super(LLSDType.STRING, val);
+        } else if (val instanceof LLUUID) {
+            super(LLSDType.UUID, val);
+        } else if (val instanceof LLSDDate) {
+            super(LLSDType.DATE, val);
+        } else if (val instanceof Date) {
+            super(LLSDType.DATE, new LLSDDate(val));
+        } else if (val instanceof LLSDURI) {
+            super(LLSDType.URI, val);
+        } else if (val instanceof Uint8Array) {
+            super(LLSDType.BINARY, new LLSDBinary(val));
+        } else if (val instanceof Map) {
+            super(LLSDType.MAP, val);
+        } else if (Array.isArray(val)) {
+            super(LLSDType.ARRAY, val);
+        } else {
+            super(LLSDType.UNDEFINED, null);
+        }
+    }
+
+    public static emptyMap(): LLSD {
+        return new LLSD(new Map<string, LLSDValue>(), LLSDType.MAP);
+    }
+
+    public static emptyArray(): LLSD {
+        return new LLSD([], LLSDType.ARRAY);
+    }
+}
+
+export type LLSDMap = { [key: string]: any };
+export type LLSDArray = any[];

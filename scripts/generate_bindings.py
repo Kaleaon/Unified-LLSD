@@ -296,40 +296,130 @@ export class TextureTransformAdapter {
     }
 }
 
-export interface Vector2 {
-    x: number;
-    y: number;
+export class Vector2 {
+    public x: number;
+    public y: number;
+
+    constructor(x: number = 0, y: number = 0) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public getPacked(): Float32Array {
+        return new Float32Array([this.x, this.y]);
+    }
 }
 
-export interface Vector3 {
-    x: number;
-    y: number;
-    z: number;
+export class Vector3 {
+    public x: number;
+    public y: number;
+    public z: number;
+
+    constructor(x: number = 0, y: number = 0, z: number = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    public getPacked(): Float32Array {
+        return new Float32Array([this.x, this.y, this.z]);
+    }
 }
 
-export interface JointInfluence {
-    jointIndex: number;
-    weight: number;
+export class JointInfluence {
+    public jointIndex: number;
+    public weight: number;
+
+    constructor(jointIndex: number = 0, weight: number = 0.0) {
+        this.jointIndex = jointIndex;
+        this.weight = weight;
+    }
+
+    public getPacked(): Float32Array {
+        return new Float32Array([this.jointIndex, this.weight]);
+    }
 }
 
-export interface GLTFMaterialAdapter {
-    alphaMode: AlphaMode;
-    alphaCutoff: number;
-    doubleSided: boolean;
-    transforms: TextureTransformAdapter[];
+export class GLTFMaterialAdapter {
+    public alphaMode: AlphaMode;
+    public alphaCutoff: number;
+    public doubleSided: boolean;
+    public transforms: TextureTransformAdapter[];
+
+    constructor(
+        alphaMode: AlphaMode = AlphaMode.OPAQUE,
+        alphaCutoff: number = 0.5,
+        doubleSided: boolean = false,
+        transforms: TextureTransformAdapter[] = []
+    ) {
+        this.alphaMode = alphaMode;
+        this.alphaCutoff = alphaCutoff;
+        this.doubleSided = doubleSided;
+        this.transforms = transforms;
+    }
+
+    public getPackedTransforms(): Float32Array {
+        let totalLen = 0;
+        const packedList = this.transforms.map(t => t.getPacked());
+        for (const p of packedList) totalLen += p.length;
+        const result = new Float32Array(totalLen);
+        let offset = 0;
+        for (const p of packedList) {
+            result.set(p, offset);
+            offset += p.length;
+        }
+        return result;
+    }
 }
 
-export interface MeshBlockAdapter {
-    lod: DetailLevel;
-    lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
-    jointInfluences: JointInfluence[];
+export class MeshBlockAdapter {
+    public lod: DetailLevel;
+    public lodKey: string;
+    public positions: Vector3[];
+    public normals: Vector3[];
+    public texCoords: Vector2[];
+    public jointInfluences: JointInfluence[];
+
+    constructor(
+        lod: DetailLevel = DetailLevel.HIGHEST,
+        positions: Vector3[] = [],
+        normals: Vector3[] = [],
+        texCoords: Vector2[] = [],
+        jointInfluences: JointInfluence[] = [],
+        lodKey?: string
+    ) {
+        this.lod = lod;
+        this.lodKey = lodKey ?? AssetSchemaConstants.getLodKey(lod);
+        this.positions = positions;
+        this.normals = normals;
+        this.texCoords = texCoords;
+        this.jointInfluences = jointInfluences;
+    }
+
+    public getPackedPositions(): Float32Array {
+        const result = new Float32Array(this.positions.length * 3);
+        this.positions.forEach((p, i) => result.set(p.getPacked(), i * 3));
+        return result;
+    }
+
+    public getPackedNormals(): Float32Array {
+        const result = new Float32Array(this.normals.length * 3);
+        this.normals.forEach((n, i) => result.set(n.getPacked(), i * 3));
+        return result;
+    }
+
+    public getPackedTexCoords(): Float32Array {
+        const result = new Float32Array(this.texCoords.length * 2);
+        this.texCoords.forEach((t, i) => result.set(t.getPacked(), i * 2));
+        return result;
+    }
 }
 """
     os.makedirs("/app/Unified-LLSD/bindings/typescript", exist_ok=True)
     with open("/app/Unified-LLSD/bindings/typescript/AssetSchemaAdapter.ts", "w") as f:
+        f.write(ts_code)
+    os.makedirs("/app/Unified-LLSD/typescript/src", exist_ok=True)
+    with open("/app/Unified-LLSD/typescript/src/AssetSchemaAdapter.ts", "w") as f:
         f.write(ts_code)
 
 def main():

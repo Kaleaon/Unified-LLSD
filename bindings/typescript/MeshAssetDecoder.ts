@@ -22,7 +22,6 @@ export class MeshAssetDecoder {
     public static parseJointInfluences(buffer: Uint8Array, offset: number = 0): { jointInfluences: JointInfluence[]; bytesRead: number } {
         const influences: JointInfluence[] = [];
         let cur = offset;
-        const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
         while (cur < buffer.length) {
             const jointIdx = buffer[cur++];
@@ -36,10 +35,7 @@ export class MeshAssetDecoder {
             const uint16Weight = (b1 << 8) | b0;
             const weight = uint16Weight / 65535.0;
 
-            influences.push({
-                jointIndex: jointIdx,
-                weight: weight
-            });
+            influences.push(new JointInfluence(jointIdx, weight));
         }
 
         return {
@@ -79,12 +75,7 @@ export class MeshAssetDecoder {
         doubleSided: boolean = false,
         transforms: TextureTransformAdapter[] = []
     ): GLTFMaterialAdapter {
-        return {
-            alphaMode,
-            alphaCutoff,
-            doubleSided,
-            transforms
-        };
+        return new GLTFMaterialAdapter(alphaMode, alphaCutoff, doubleSided, transforms);
     }
 
     /**
@@ -92,18 +83,11 @@ export class MeshAssetDecoder {
      */
     public static createMeshBlock(
         lod: DetailLevel,
-        positions: Vector3[],
-        normals: Vector3[],
-        texCoords: Vector2[],
-        jointInfluences: JointInfluence[]
+        positions: Vector3[] = [],
+        normals: Vector3[] = [],
+        texCoords: Vector2[] = [],
+        jointInfluences: JointInfluence[] = []
     ): MeshBlockAdapter {
-        return {
-            lod,
-            lodKey: MeshAssetDecoder.getLodKey(lod),
-            positions,
-            normals,
-            texCoords,
-            jointInfluences
-        };
+        return new MeshBlockAdapter(lod, positions, normals, texCoords, jointInfluences);
     }
 }
