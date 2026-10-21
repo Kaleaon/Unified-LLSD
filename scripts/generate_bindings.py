@@ -64,8 +64,10 @@ struct TextureTransformAdapter {
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 """
-    os.makedirs("/app/Unified-LLSD/bindings/cpp", exist_ok=True)
-    with open("/app/Unified-LLSD/bindings/cpp/AssetSchemaAdapter.h", "w") as f:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base_dir, "bindings", "cpp")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "AssetSchemaAdapter.h"), "w") as f:
         f.write(cpp_code)
 
 
@@ -109,8 +111,10 @@ class TextureTransformAdapter(
     )
 }
 """
-    os.makedirs("/app/Unified-LLSD/bindings/kotlin", exist_ok=True)
-    with open("/app/Unified-LLSD/bindings/kotlin/AssetSchemaAdapter.kt", "w") as f:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base_dir, "bindings", "kotlin")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "AssetSchemaAdapter.kt"), "w") as f:
         f.write(kt_code)
 
 
@@ -172,13 +176,14 @@ namespace Linkpoint.LLSD.Schema
     }
 }
 """
-    os.makedirs("/app/Unified-LLSD/bindings/csharp", exist_ok=True)
-    with open("/app/Unified-LLSD/bindings/csharp/AssetSchemaAdapter.cs", "w") as f:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base_dir, "bindings", "csharp")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-    os.makedirs("/app/Unified-LLSD/csharp/Linkpoint.LLSD/Schema", exist_ok=True)
-    with open(
-        "/app/Unified-LLSD/csharp/Linkpoint.LLSD/Schema/AssetSchemaAdapter.cs", "w"
-    ) as f:
+    out_pkg_dir = os.path.join(base_dir, "csharp", "Linkpoint.LLSD", "Schema")
+    os.makedirs(out_pkg_dir, exist_ok=True)
+    with open(os.path.join(out_pkg_dir, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
 
 
@@ -230,8 +235,10 @@ public class AssetSchemaAdapter {
     }
 }
 """
-    os.makedirs("/app/Unified-LLSD/bindings/java", exist_ok=True)
-    with open("/app/Unified-LLSD/bindings/java/AssetSchemaAdapter.java", "w") as f:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base_dir, "bindings", "java")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "AssetSchemaAdapter.java"), "w") as f:
         f.write(java_code)
 
 
@@ -334,8 +341,10 @@ export interface MeshBlockAdapter {
     jointInfluences: JointInfluence[];
 }
 """
-    os.makedirs("/app/Unified-LLSD/bindings/typescript", exist_ok=True)
-    with open("/app/Unified-LLSD/bindings/typescript/AssetSchemaAdapter.ts", "w") as f:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base_dir, "bindings", "typescript")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "AssetSchemaAdapter.ts"), "w") as f:
         f.write(ts_code)
 
 
@@ -476,8 +485,6 @@ struct GodotTextureTransformAdapter {
         os.path.join(
             base_dir, "platforms", "godot", "gdextension", "src", "generated", "schema"
         ),
-        "/app/Linkpoint/platforms/godot/gdextension/src/generated/schema",
-        "/app/Unified-LLSD/platforms/godot/gdextension/src/generated/schema",
     ]
     for d in out_dirs:
         os.makedirs(d, exist_ok=True)
