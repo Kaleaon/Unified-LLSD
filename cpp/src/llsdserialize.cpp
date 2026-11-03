@@ -73,14 +73,30 @@ static std::vector<uint8_t> base64_decode(const std::string& encoded_string) {
 }
 
 // --- Hex helpers ---
+static inline int hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
 static std::vector<uint8_t> hex_decode(const std::string& str) {
     std::vector<uint8_t> bytes;
-    std::string clean;
-    for (char c : str) if (!isspace(c)) clean.push_back(c);
-    for (size_t i = 0; i < clean.size(); i += 2) {
-        std::string byteString = clean.substr(i, 2);
-        char* end = nullptr;
-        bytes.push_back(static_cast<uint8_t>(std::strtoul(byteString.c_str(), &end, 16)));
+    bytes.reserve(str.size() / 2);
+    int high_nibble = -1;
+    for (char c : str) {
+        if (isspace(static_cast<unsigned char>(c))) continue;
+        int nibble = hex_nibble(c);
+        if (nibble < 0) continue;
+        if (high_nibble < 0) {
+            high_nibble = nibble;
+        } else {
+            bytes.push_back(static_cast<uint8_t>((high_nibble << 4) | nibble));
+            high_nibble = -1;
+        }
+    }
+    if (high_nibble >= 0) {
+        bytes.push_back(static_cast<uint8_t>(high_nibble));
     }
     return bytes;
 }

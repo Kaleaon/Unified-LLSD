@@ -46,6 +46,39 @@ int main() {
     assert(backNotation["int"].asInteger64() == bigInt);
     assert(backNotation["str"].asString() == "hello world");
 
+    // Test 6: Base16 Hex Decoding
+    // XML base16 binary
+    std::string xmlBase16 = "<llsd><binary encoding=\"base16\">48656c6c6f</binary></llsd>";
+    llsd::LLSD parsedXmlHex = llsd::LLSDSerialize::fromXML(xmlBase16);
+    assert(parsedXmlHex.isBinary());
+    auto binXmlVec = parsedXmlHex.asBinary();
+    std::string binXmlStr(binXmlVec.begin(), binXmlVec.end());
+    assert(binXmlStr == "Hello");
+
+    // Notation b16 binary
+    std::string notationBase16 = "b16\"48656c6c6f\"";
+    llsd::LLSD parsedNotationHex = llsd::LLSDSerialize::fromNotation(notationBase16);
+    assert(parsedNotationHex.isBinary());
+    auto binNotVec = parsedNotationHex.asBinary();
+    std::string binNotStr(binNotVec.begin(), binNotVec.end());
+    assert(binNotStr == "Hello");
+
+    // Whitespace-padded & mixed-case base16 data
+    std::string whitespaceBase16 = "b16\" 48 65 \n 6C 6c 6F \"";
+    llsd::LLSD parsedWsHex = llsd::LLSDSerialize::fromNotation(whitespaceBase16);
+    assert(parsedWsHex.isBinary());
+    auto binWsVec = parsedWsHex.asBinary();
+    std::string binWsStr(binWsVec.begin(), binWsVec.end());
+    assert(binWsStr == "Hello");
+
+    // Odd length payload
+    std::string oddBase16 = "b16\"48656c6c6fF\"";
+    llsd::LLSD parsedOddHex = llsd::LLSDSerialize::fromNotation(oddBase16);
+    assert(parsedOddHex.isBinary());
+    auto binOddVec = parsedOddHex.asBinary();
+    assert(binOddVec.size() == 6);
+    assert(binOddVec[5] == 0x0f);
+
     std::cout << "All C++ LLSD Conformance Tests Passed!" << std::endl;
     return 0;
 }
