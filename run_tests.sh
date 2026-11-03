@@ -24,13 +24,14 @@ echo "✓ Kotlin Native SDK passed!"
 echo ""
 echo "[3/7] Testing C# Native SDK..."
 cd "$ROOT_DIR/csharp"
-dotnet test "$ROOT_DIR/csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj" --nologo -v q
+dotnet run --project Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 echo "✓ C# Native SDK passed!"
 
 echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""

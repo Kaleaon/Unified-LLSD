@@ -498,5 +498,316 @@ fn parse_quoted(text: &str, pos: &mut usize) -> String {
     res
 }
 
-pub fn to_json(sd: &Llsd) -> String { to_notation(sd) }
-pub fn from_json(json: &str) -> Llsd { from_notation(json) }
+pub fn to_json(sd: &Llsd) -> String {
+    let mut out = String::new();
+    write_json(&mut out, sd);
+    out
+}
+
+fn write_json(out: &mut String, sd: &Llsd) {
+    match sd {
+        Llsd::Undefined => out.push_str("null"),
+        Llsd::Boolean(b) => out.push_str(if *b { "true" } else { "false" }),
+        Llsd::Integer(i) => out.push_str(&i.to_string()),
+        Llsd::Real(r) => out.push_str(&format_real(*r)),
+        Llsd::String(s) => write_json_string(out, s),
+        Llsd::Uuid(u) => write_json_string(out, &u.to_string()),
+        Llsd::Date(d) => write_json_string(out, &d.to_iso_string()),
+        Llsd::Uri(u) => write_json_string(out, u.as_str()),
+        Llsd::Binary(b) => write_json_string(out, &base64_encode(b)),
+        Llsd::Map(m) => {
+            out.push('{');
+            let mut first = true;
+            for (k, v) in m {
+                if !first {
+                    out.push(',');
+                }
+                first = false;
+                write_json_string(out, k);
+                out.push(':');
+                write_json(out, v);
+            }
+            out.push('}');
+        }
+        Llsd::Array(a) => {
+            out.push('[');
+            for (i, v) in a.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                write_json(out, v);
+            }
+            out.push(']');
+        }
+    }
+}
+
+fn format_real(r: f64) -> String {
+    if r.is_nan() || r.is_infinite() {
+        "null".to_string()
+    } else {
+        let s = r.to_string();
+        if !s.contains('.') && !s.contains('e') && !s.contains('E') {
+            format!("{}.0", s)
+        } else {
+            s
+        }
+    }
+}
+
+fn write_json_string(out: &mut String, s: &str) {
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\x08' => out.push_str("\\b"),
+            '\x0C' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+}
+
+pub fn from_json(json: &str) -> Llsd {
+    let mut pos = 0;
+    skip_json_ws(json, &mut pos);
+    if pos >= json.len() {
+        return Llsd::Undefined;
+    }
+    parse_json_value(json, &mut pos).unwrap_or(Llsd::Undefined)
+}
+
+fn skip_json_ws(text: &str, pos: &mut usize) {
+    let bytes = text.as_bytes();
+    while *pos < text.len()
+        && (bytes[*pos] == b' '
+            || bytes[*pos] == b'\t'
+            || bytes[*pos] == b'\n'
+            || bytes[*pos] == b'\r')
+    {
+        *pos += 1;
+    }
+}
+
+fn parse_json_value(text: &str, pos: &mut usize) -> Option<Llsd> {
+    skip_json_ws(text, pos);
+    if *pos >= text.len() {
+        return None;
+    }
+    let b = text.as_bytes()[*pos];
+    match b {
+        b'n' => {
+            if text[*pos..].starts_with("null") {
+                *pos += 4;
+                Some(Llsd::Undefined)
+            } else {
+                None
+            }
+        }
+        b't' => {
+            if text[*pos..].starts_with("true") {
+                *pos += 4;
+                Some(Llsd::Boolean(true))
+            } else {
+                None
+            }
+        }
+        b'f' => {
+            if text[*pos..].starts_with("false") {
+                *pos += 5;
+                Some(Llsd::Boolean(false))
+            } else {
+                None
+            }
+        }
+        b'"' => {
+            let s = parse_json_string(text, pos)?;
+            Some(Llsd::String(s))
+        }
+        b'{' => parse_json_object(text, pos),
+        b'[' => parse_json_array(text, pos),
+        b'0'..=b'9' | b'-' => parse_json_number(text, pos),
+        _ => None,
+    }
+}
+
+fn parse_json_string(text: &str, pos: &mut usize) -> Option<String> {
+    let bytes = text.as_bytes();
+    if *pos >= text.len() || bytes[*pos] != b'"' {
+        return None;
+    }
+    *pos += 1; // consume opening "
+    let mut res = String::new();
+    while *pos < text.len() {
+        let b = bytes[*pos];
+        if b == b'"' {
+            *pos += 1; // consume closing "
+            return Some(res);
+        }
+        if b == b'\\' {
+            *pos += 1;
+            if *pos >= text.len() {
+                return None;
+            }
+            let esc = bytes[*pos];
+            *pos += 1;
+            match esc {
+                b'"' => res.push('"'),
+                b'\\' => res.push('\\'),
+                b'/' => res.push('/'),
+                b'b' => res.push('\x08'),
+                b'f' => res.push('\x0C'),
+                b'n' => res.push('\n'),
+                b'r' => res.push('\r'),
+                b't' => res.push('\t'),
+                b'u' => {
+                    if *pos + 4 > text.len() {
+                        return None;
+                    }
+                    let hex_str = &text[*pos..*pos + 4];
+                    *pos += 4;
+                    let code = u16::from_str_radix(hex_str, 16).ok()?;
+                    if (0xD800..=0xDBFF).contains(&code) {
+                        // High surrogate
+                        if *pos + 6 <= text.len() && &bytes[*pos..*pos + 2] == b"\\u" {
+                            let hex_str2 = &text[*pos + 2..*pos + 6];
+                            if let Ok(code2) = u16::from_str_radix(hex_str2, 16) {
+                                if (0xDC00..=0xDFFF).contains(&code2) {
+                                    *pos += 6;
+                                    let cp = 0x10000
+                                        + (((code as u32 - 0xD800) << 10)
+                                            | (code2 as u32 - 0xDC00));
+                                    if let Some(ch) = std::char::from_u32(cp) {
+                                        res.push(ch);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        res.push(std::char::REPLACEMENT_CHARACTER);
+                    } else if let Some(ch) = std::char::from_u32(code as u32) {
+                        res.push(ch);
+                    } else {
+                        res.push(std::char::REPLACEMENT_CHARACTER);
+                    }
+                }
+                _ => return None,
+            }
+        } else {
+            let ch = text[*pos..].chars().next()?;
+            res.push(ch);
+            *pos += ch.len_utf8();
+        }
+    }
+    None
+}
+
+fn parse_json_number(text: &str, pos: &mut usize) -> Option<Llsd> {
+    let start = *pos;
+    let bytes = text.as_bytes();
+    let mut is_float = false;
+
+    if *pos < text.len() && bytes[*pos] == b'-' {
+        *pos += 1;
+    }
+
+    while *pos < text.len() {
+        let b = bytes[*pos];
+        if b == b'.' || b == b'e' || b == b'E' {
+            is_float = true;
+            *pos += 1;
+        } else if b.is_ascii_digit() || b == b'+' || b == b'-' {
+            *pos += 1;
+        } else {
+            break;
+        }
+    }
+
+    let num_str = &text[start..*pos];
+    if is_float {
+        let r: f64 = num_str.parse().ok()?;
+        Some(Llsd::Real(r))
+    } else if let Ok(i) = num_str.parse::<i64>() {
+        Some(Llsd::Integer(i))
+    } else if let Ok(r) = num_str.parse::<f64>() {
+        Some(Llsd::Real(r))
+    } else {
+        None
+    }
+}
+
+fn parse_json_object(text: &str, pos: &mut usize) -> Option<Llsd> {
+    if *pos >= text.len() || text.as_bytes()[*pos] != b'{' {
+        return None;
+    }
+    *pos += 1; // consume '{'
+    let mut map = BTreeMap::new();
+    skip_json_ws(text, pos);
+    if *pos < text.len() && text.as_bytes()[*pos] == b'}' {
+        *pos += 1; // consume '}'
+        return Some(Llsd::Map(map));
+    }
+
+    while *pos < text.len() {
+        skip_json_ws(text, pos);
+        if *pos >= text.len() || text.as_bytes()[*pos] != b'"' {
+            return None;
+        }
+        let key = parse_json_string(text, pos)?;
+        skip_json_ws(text, pos);
+        if *pos >= text.len() || text.as_bytes()[*pos] != b':' {
+            return None;
+        }
+        *pos += 1; // consume ':'
+        skip_json_ws(text, pos);
+        let val = parse_json_value(text, pos)?;
+        map.insert(key, val);
+        skip_json_ws(text, pos);
+        if *pos < text.len() && text.as_bytes()[*pos] == b',' {
+            *pos += 1; // consume ','
+        } else if *pos < text.len() && text.as_bytes()[*pos] == b'}' {
+            *pos += 1; // consume '}'
+            break;
+        } else {
+            return None;
+        }
+    }
+    Some(Llsd::Map(map))
+}
+
+fn parse_json_array(text: &str, pos: &mut usize) -> Option<Llsd> {
+    if *pos >= text.len() || text.as_bytes()[*pos] != b'[' {
+        return None;
+    }
+    *pos += 1; // consume '['
+    let mut arr = Vec::new();
+    skip_json_ws(text, pos);
+    if *pos < text.len() && text.as_bytes()[*pos] == b']' {
+        *pos += 1; // consume ']'
+        return Some(Llsd::Array(arr));
+    }
+
+    while *pos < text.len() {
+        skip_json_ws(text, pos);
+        let val = parse_json_value(text, pos)?;
+        arr.push(val);
+        skip_json_ws(text, pos);
+        if *pos < text.len() && text.as_bytes()[*pos] == b',' {
+            *pos += 1; // consume ','
+        } else if *pos < text.len() && text.as_bytes()[*pos] == b']' {
+            *pos += 1; // consume ']'
+            break;
+        } else {
+            return None;
+        }
+    }
+    Some(Llsd::Array(arr))
+}
+
