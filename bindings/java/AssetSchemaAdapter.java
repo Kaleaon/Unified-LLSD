@@ -3,7 +3,7 @@ package com.unifiedllsd.schema;
 
 public class AssetSchemaAdapter {
     public static final int MAX_RIGGED_MESH_JOINTS = 256;
-    public static final int JOINT_SENTINEL = 0xFF;
+    public static final int JOINT_SENTINEL = 0xFFFF;
 
     public enum DetailLevel {
         HIGHEST,
@@ -42,5 +42,13 @@ public class AssetSchemaAdapter {
         public float[] getPackedTight() {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
+    }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
     }
 }

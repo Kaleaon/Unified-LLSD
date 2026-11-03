@@ -56,6 +56,9 @@ export class LLSD {
     } else if (Array.isArray(val)) {
       this.type = LLSDType.Array;
       this.value = val;
+    } else if (typeof val === 'object') {
+      this.type = LLSDType.Map;
+      this.value = val;
     } else {
       this.type = LLSDType.Undefined;
       this.value = null;
