@@ -18,10 +18,12 @@ node_modules/
 target/
 .gradle/
 .idea/
+.dart_tool/
 *.exe
 *.dll
 *.o
 *.a
 *.so
 *.dylib
+.build/
 .dart_tool/

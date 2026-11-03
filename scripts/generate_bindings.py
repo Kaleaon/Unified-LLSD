@@ -17,6 +17,7 @@ def generate_cpp():
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -29,7 +30,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {
@@ -62,6 +63,14 @@ struct TextureTransformAdapter {
     }
 };
 
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
+};
+
 } // namespace UnifiedLLSD
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
@@ -85,7 +94,7 @@ enum class DetailLevel(val code: Int) {
 
 object AssetSchemaConstants {
     const val MAX_RIGGED_MESH_JOINTS: Int = 256
-    const val JOINT_SENTINEL: Int = 0xFF
+    const val JOINT_SENTINEL: Int = 0xFFFF
 
     fun getLodKey(lod: DetailLevel): String = when (lod) {
         DetailLevel.HIGHEST, DetailLevel.HIGH -> "high_lod"
@@ -110,6 +119,14 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+class MeshBlockAdapter(
+    var lod: DetailLevel = DetailLevel.HIGHEST,
+    var lodKey: String = "",
+    var positionsFlat: FloatArray = floatArrayOf(),
+    var normalsFlat: FloatArray = floatArrayOf(),
+    var texCoordsFlat: FloatArray = floatArrayOf()
+)
 """
     kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
     os.makedirs(kt_dir, exist_ok=True)
@@ -134,7 +151,7 @@ namespace Linkpoint.LLSD.Schema
     public static class AssetSchemaConstants
     {
         public const int MAX_RIGGED_MESH_JOINTS = 256;
-        public const byte JOINT_SENTINEL = 0xFF;
+        public const ushort JOINT_SENTINEL = 0xFFFF;
 
         public static string GetLodKey(DetailLevel lod)
         {
@@ -172,6 +189,15 @@ namespace Linkpoint.LLSD.Schema
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }
 """
     cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
@@ -189,7 +215,7 @@ package com.unifiedllsd.schema;
 
 public class AssetSchemaAdapter {
     public static final int MAX_RIGGED_MESH_JOINTS = 256;
-    public static final int JOINT_SENTINEL = 0xFF;
+    public static final int JOINT_SENTINEL = 0xFFFF;
 
     public enum DetailLevel {
         HIGHEST,
@@ -229,6 +255,14 @@ public class AssetSchemaAdapter {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
     }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
+    }
 }
 """
     java_dir = os.path.join(REPO_ROOT, "bindings", "java")
@@ -255,7 +289,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {
@@ -329,10 +363,13 @@ export interface GLTFMaterialAdapter {
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
+    positions: Vector3[] | Float32Array;
+    normals: Vector3[] | Float32Array;
+    texCoords: Vector2[] | Float32Array;
     jointInfluences: JointInfluence[];
+    positionsFlat?: Float32Array;
+    normalsFlat?: Float32Array;
+    texCoordsFlat?: Float32Array;
 }
 """
     ts_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
