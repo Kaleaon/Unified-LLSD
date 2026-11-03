@@ -9,8 +9,9 @@ export class LLSDSerialize {
   public static readonly xmlHeader = XmlCodec.xmlHeader;
 
   // --- XML ---
-  public static toXML(sd: LLSD, withDeclaration = false): string {
-    return XmlCodec.toXML(sd, withDeclaration);
+  public static toXML(sd: LLSD | any, withDeclaration = false): string {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
+    return XmlCodec.toXML(llsd, withDeclaration);
   }
 
   public static fromXML(xml: string): LLSD {
@@ -18,8 +19,9 @@ export class LLSDSerialize {
   }
 
   // --- Binary ---
-  public static toBinary(sd: LLSD): Uint8Array {
-    return BinaryCodec.toBinary(sd);
+  public static toBinary(sd: LLSD | any): Uint8Array {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
+    return BinaryCodec.toBinary(llsd);
   }
 
   public static fromBinary(bytes: Uint8Array): LLSD {
@@ -27,8 +29,9 @@ export class LLSDSerialize {
   }
 
   // --- Notation ---
-  public static toNotation(sd: LLSD): string {
-    return NotationCodec.toNotation(sd);
+  public static toNotation(sd: LLSD | any): string {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
+    return NotationCodec.toNotation(llsd);
   }
 
   public static fromNotation(text: string): LLSD {

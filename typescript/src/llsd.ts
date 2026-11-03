@@ -52,10 +52,21 @@ export class LLSD {
       this.value = val;
     } else if (val instanceof Map) {
       this.type = LLSDType.Map;
-      this.value = val;
+      const m = new Map<string, LLSD>();
+      for (const [k, v] of val.entries()) {
+        m.set(String(k), v instanceof LLSD ? v : new LLSD(v));
+      }
+      this.value = m;
     } else if (Array.isArray(val)) {
       this.type = LLSDType.Array;
-      this.value = val;
+      this.value = val.map(item => item instanceof LLSD ? item : new LLSD(item));
+    } else if (typeof val === 'object') {
+      this.type = LLSDType.Map;
+      const m = new Map<string, LLSD>();
+      for (const [k, v] of Object.entries(val)) {
+        m.set(k, v instanceof LLSD ? v : new LLSD(v));
+      }
+      this.value = m;
     } else {
       this.type = LLSDType.Undefined;
       this.value = null;
