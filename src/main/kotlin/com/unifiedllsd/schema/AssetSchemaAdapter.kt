@@ -57,3 +57,11 @@ class GLTFMaterial(
         if (textureInfo in transforms.indices) transforms[textureInfo].getPackedTight()
         else floatArrayOf(1.0f, 1.0f, 0.0f, 0.0f, 0.0f)
 }
+
+class MeshBlockAdapter(
+    var lod: DetailLevel = DetailLevel.HIGHEST,
+    var lodKey: String = "",
+    var positionsFlat: FloatArray = floatArrayOf(),
+    var normalsFlat: FloatArray = floatArrayOf(),
+    var texCoordsFlat: FloatArray = floatArrayOf()
+)

@@ -91,4 +91,13 @@ namespace Linkpoint.LLSD.Schema
 
         public float[] GetPackedTight(int index = 0) => getPackedTight(index);
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }

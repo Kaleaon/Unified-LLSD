@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -88,6 +89,14 @@ struct GLTFMaterialAdapter {
     std::array<float, 5> GetPackedTight(size_t index = 0) const {
         return getPackedTight(index);
     }
+};
+
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
 };
 
 } // namespace UnifiedLLSD

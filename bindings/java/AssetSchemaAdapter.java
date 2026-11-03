@@ -70,4 +70,12 @@ public class AssetSchemaAdapter {
             return new float[] { 1.0f, 1.0f, 0.0f, 0.0f, 0.0f };
         }
     }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
+    }
 }
