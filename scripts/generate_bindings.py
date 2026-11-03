@@ -17,6 +17,7 @@ def generate_cpp():
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -60,6 +61,14 @@ struct TextureTransformAdapter {
     std::array<float, 5> GetPackedTight() const {
         return { scaleX, scaleY, rotation, offsetX, offsetY };
     }
+};
+
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
 };
 
 } // namespace UnifiedLLSD
@@ -110,6 +119,14 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+class MeshBlockAdapter(
+    var lod: DetailLevel = DetailLevel.HIGHEST,
+    var lodKey: String = "",
+    var positionsFlat: FloatArray = floatArrayOf(),
+    var normalsFlat: FloatArray = floatArrayOf(),
+    var texCoordsFlat: FloatArray = floatArrayOf()
+)
 """
     kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
     os.makedirs(kt_dir, exist_ok=True)
@@ -172,6 +189,15 @@ namespace Linkpoint.LLSD.Schema
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }
 """
     cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
@@ -228,6 +254,14 @@ public class AssetSchemaAdapter {
         public float[] getPackedTight() {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
+    }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
     }
 }
 """
@@ -329,10 +363,13 @@ export interface GLTFMaterialAdapter {
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
+    positions: Vector3[] | Float32Array;
+    normals: Vector3[] | Float32Array;
+    texCoords: Vector2[] | Float32Array;
     jointInfluences: JointInfluence[];
+    positionsFlat?: Float32Array;
+    normalsFlat?: Float32Array;
+    texCoordsFlat?: Float32Array;
 }
 """
     ts_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
