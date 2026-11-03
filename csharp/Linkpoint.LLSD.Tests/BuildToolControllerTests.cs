@@ -20,7 +20,7 @@ namespace Linkpoint.LLSD.Tests
             // Test transform update
             var newPos = new Vector3Data(15f, 25f, 35f);
             var updated = controller.UpdateTransform(state.ObjectId, newPos, rot, scale);
-            Assert.Equal(15f, updated.Position.X, "Updated position X should match 15");
+            Assert.Equal(15f, updated!.Position.X, "Updated position X should match 15");
         }
 
         public void TestGizmoEventRouting()
@@ -35,11 +35,11 @@ namespace Linkpoint.LLSD.Tests
 
             // Move X gizmo
             controller.HandleGizmoEvent(state.ObjectId, "x", "move", 2.5f);
-            Assert.Equal(2.5f, controller.GetPrimitive(state.ObjectId).Position.X, "Gizmo move X should adjust position");
+            Assert.Equal(2.5f, controller.GetPrimitive(state.ObjectId)!.Position.X, "Gizmo move X should adjust position");
 
             // Scale Y gizmo
             controller.HandleGizmoEvent(state.ObjectId, "y", "scale", 0.5f);
-            Assert.Equal(1.5f, controller.GetPrimitive(state.ObjectId).Scale.Y, "Gizmo scale Y should adjust scale");
+            Assert.Equal(1.5f, controller.GetPrimitive(state.ObjectId)!.Scale.Y, "Gizmo scale Y should adjust scale");
         }
 
         public void TestTexturePickingAndUVMath()

@@ -9,15 +9,15 @@ namespace Linkpoint.LLSD.Build
     public class BuildToolController
     {
         private readonly Dictionary<string, PrimitiveState> _activePrimitives = new Dictionary<string, PrimitiveState>();
-        private string _selectedObjectId = null;
+        private string? _selectedObjectId = null;
         private int _selectedFaceIndex = -1;
         private string _selectedInventoryTextureUuid = LLUUID.Zero.ToString();
 
-        public string SelectedObjectId => _selectedObjectId;
+        public string? SelectedObjectId => _selectedObjectId;
         public int SelectedFaceIndex => _selectedFaceIndex;
         public string SelectedInventoryTextureUuid => _selectedInventoryTextureUuid;
 
-        public PrimitiveState GetSelectedPrimitive()
+        public PrimitiveState? GetSelectedPrimitive()
         {
             if (_selectedObjectId != null && _activePrimitives.TryGetValue(_selectedObjectId, out var state))
             {
@@ -26,7 +26,7 @@ namespace Linkpoint.LLSD.Build
             return null;
         }
 
-        public PrimitiveState GetPrimitive(string objectId)
+        public PrimitiveState? GetPrimitive(string? objectId)
         {
             if (objectId != null && _activePrimitives.TryGetValue(objectId, out var state))
             {
@@ -88,7 +88,7 @@ namespace Linkpoint.LLSD.Build
             };
         }
 
-        public PrimitiveState UpdateTransform(string objectId, Vector3Data position, QuaternionData rotation, Vector3Data scale)
+        public PrimitiveState? UpdateTransform(string objectId, Vector3Data position, QuaternionData rotation, Vector3Data scale)
         {
             var state = GetPrimitive(objectId);
             if (state == null) return null;
@@ -106,7 +106,7 @@ namespace Linkpoint.LLSD.Build
             return state;
         }
 
-        public PrimitiveState HandleGizmoEvent(string objectId, string gizmoAxis, string gizmoMode, float deltaAmount)
+        public PrimitiveState? HandleGizmoEvent(string objectId, string gizmoAxis, string gizmoMode, float deltaAmount)
         {
             var state = GetPrimitive(objectId);
             if (state == null) return null;
@@ -155,7 +155,7 @@ namespace Linkpoint.LLSD.Build
             return UpdateTransform(objectId, pos, rot, scale);
         }
 
-        public PrimitiveState UpdateShapeParameters(string objectId, ShapeParameters paramsObj)
+        public PrimitiveState? UpdateShapeParameters(string objectId, ShapeParameters paramsObj)
         {
             var state = GetPrimitive(objectId);
             if (state == null) return null;
@@ -170,7 +170,7 @@ namespace Linkpoint.LLSD.Build
             return state;
         }
 
-        public void PickTextureFromInventory(string textureUuid, string textureName = null)
+        public void PickTextureFromInventory(string textureUuid, string? textureName = null)
         {
             if (string.IsNullOrEmpty(textureUuid))
             {
@@ -179,7 +179,7 @@ namespace Linkpoint.LLSD.Build
             _selectedInventoryTextureUuid = textureUuid;
         }
 
-        public FaceTextureEntry ApplyFaceTexture(string objectId, int faceIndex, FaceTextureEntry entry)
+        public FaceTextureEntry? ApplyFaceTexture(string objectId, int faceIndex, FaceTextureEntry entry)
         {
             var state = GetPrimitive(objectId);
             if (state == null || entry == null) return null;
