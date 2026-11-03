@@ -1,8 +1,12 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <unordered_set>
+#include <vector>
+#include <thread>
 #include "llsd/llsd.h"
 #include "llsd/llsdserialize.h"
+#include "../../bindings/cpp/AssetSchemaAdapter.h"
 
 int main() {
     std::cout << "Running C++ LLSD Conformance Tests..." << std::endl;
@@ -45,6 +49,89 @@ int main() {
     llsd::LLSD backNotation = llsd::LLSDSerialize::fromNotation(notation);
     assert(backNotation["int"].asInteger64() == bigInt);
     assert(backNotation["str"].asString() == "hello world");
+
+    // Test 6: Dual-Layout TextureTransform & GLTFMaterialAdapter Packing
+    UnifiedLLSD::TextureTransformAdapter transformAdapter{2.0f, 3.0f, 1.5707963f, 0.5f, 0.25f};
+    auto packed8 = transformAdapter.getPacked();
+    auto tight5 = transformAdapter.getPackedTight();
+
+    assert(packed8.size() == 8);
+    assert(packed8[0] == 2.0f);
+    assert(packed8[1] == 3.0f);
+    assert(std::abs(packed8[2] - 1.5707963f) < 0.0001f);
+    assert(packed8[3] == 0.0f);
+    assert(packed8[4] == 0.5f);
+    assert(packed8[5] == 0.25f);
+    assert(packed8[6] == 0.0f);
+    assert(packed8[7] == 0.0f);
+
+    assert(tight5.size() == 5);
+    assert(tight5[0] == 2.0f);
+    assert(tight5[1] == 3.0f);
+    assert(std::abs(tight5[2] - 1.5707963f) < 0.0001f);
+    assert(tight5[3] == 0.5f);
+    assert(tight5[4] == 0.25f);
+
+    UnifiedLLSD::GLTFMaterialAdapter matAdapter;
+    matAdapter.transforms.push_back(transformAdapter);
+    auto matPacked8 = matAdapter.getPacked(0);
+    auto matTight5 = matAdapter.getPackedTight(0);
+    assert(matPacked8.size() == 8);
+    assert(matPacked8[0] == 2.0f);
+    assert(matPacked8[4] == 0.5f);
+    assert(matTight5.size() == 5);
+    assert(matTight5[3] == 0.5f);
+
+    // Test 7: LLUUID Generation & Bit Settings Verification
+    constexpr size_t UUID_BATCH_COUNT = 10000;
+    std::unordered_set<std::string> generatedUuids;
+    generatedUuids.reserve(UUID_BATCH_COUNT);
+
+    for (size_t i = 0; i < UUID_BATCH_COUNT; ++i) {
+        llsd::LLUUID genUuid = llsd::LLUUID::generate();
+        assert(!genUuid.isNull());
+
+        std::string str = genUuid.toString();
+        assert(str.length() == 36);
+
+        // Version 4 check: top 4 bits of byte 6 must be 0x4
+        assert((genUuid.mData[6] & 0xf0) == 0x40);
+
+        // Variant 1 check: top 2 bits of byte 8 must be 0x8 (10xx)
+        assert((genUuid.mData[8] & 0xc0) == 0x80);
+
+        generatedUuids.insert(str);
+    }
+    assert(generatedUuids.size() == UUID_BATCH_COUNT);
+
+    // Multi-threaded thread-local engine safety verification
+    constexpr size_t THREAD_COUNT = 4;
+    constexpr size_t PER_THREAD_COUNT = 2500;
+    std::vector<std::thread> threads;
+    std::vector<std::vector<std::string>> threadResults(THREAD_COUNT);
+
+    for (size_t t = 0; t < THREAD_COUNT; ++t) {
+        threads.emplace_back([t, &threadResults]() {
+            threadResults[t].reserve(PER_THREAD_COUNT);
+            for (size_t i = 0; i < PER_THREAD_COUNT; ++i) {
+                llsd::LLUUID u = llsd::LLUUID::generate();
+                assert(!u.isNull());
+                assert((u.mData[6] & 0xf0) == 0x40);
+                assert((u.mData[8] & 0xc0) == 0x80);
+                threadResults[t].push_back(u.toString());
+            }
+        });
+    }
+
+    std::unordered_set<std::string> mtUuids;
+    mtUuids.reserve(THREAD_COUNT * PER_THREAD_COUNT);
+    for (size_t t = 0; t < THREAD_COUNT; ++t) {
+        threads[t].join();
+        for (const auto& s : threadResults[t]) {
+            mtUuids.insert(s);
+        }
+    }
+    assert(mtUuids.size() == THREAD_COUNT * PER_THREAD_COUNT);
 
     std::cout << "All C++ LLSD Conformance Tests Passed!" << std::endl;
     return 0;

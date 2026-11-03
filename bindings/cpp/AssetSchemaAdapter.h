@@ -4,9 +4,17 @@
 
 #include <cstdint>
 #include <array>
+#include <vector>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
+
+enum class AlphaMode : uint8_t {
+    OPAQUE = 0,
+    MASK = 1,
+    BLEND = 2
+};
 
 enum class DetailLevel : uint8_t {
     Highest = 0,
@@ -17,7 +25,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {
@@ -41,13 +49,54 @@ struct TextureTransformAdapter {
     float offsetX = 0.0f;
     float offsetY = 0.0f;
 
-    std::array<float, 8> GetPacked() const {
+    std::array<float, 8> getPacked() const {
         return { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
     }
 
-    std::array<float, 5> GetPackedTight() const {
+    std::array<float, 8> GetPacked() const {
+        return getPacked();
+    }
+
+    std::array<float, 5> getPackedTight() const {
         return { scaleX, scaleY, rotation, offsetX, offsetY };
     }
+
+    std::array<float, 5> GetPackedTight() const {
+        return getPackedTight();
+    }
+};
+
+struct GLTFMaterialAdapter {
+    AlphaMode alphaMode = AlphaMode::OPAQUE;
+    float alphaCutoff = 0.5f;
+    bool doubleSided = false;
+    std::vector<TextureTransformAdapter> transforms;
+
+    std::array<float, 8> getPacked(size_t index = 0) const {
+        if (index < transforms.size()) return transforms[index].getPacked();
+        return { 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    }
+
+    std::array<float, 8> GetPacked(size_t index = 0) const {
+        return getPacked(index);
+    }
+
+    std::array<float, 5> getPackedTight(size_t index = 0) const {
+        if (index < transforms.size()) return transforms[index].getPackedTight();
+        return { 1.0f, 1.0f, 0.0f, 0.0f, 0.0f };
+    }
+
+    std::array<float, 5> GetPackedTight(size_t index = 0) const {
+        return getPackedTight(index);
+    }
+};
+
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
 };
 
 } // namespace UnifiedLLSD

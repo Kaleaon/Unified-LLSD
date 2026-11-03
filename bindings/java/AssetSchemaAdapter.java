@@ -3,7 +3,13 @@ package com.unifiedllsd.schema;
 
 public class AssetSchemaAdapter {
     public static final int MAX_RIGGED_MESH_JOINTS = 256;
-    public static final int JOINT_SENTINEL = 0xFF;
+    public static final int JOINT_SENTINEL = 0xFFFF;
+
+    public enum AlphaMode {
+        OPAQUE,
+        MASK,
+        BLEND
+    }
 
     public enum DetailLevel {
         HIGHEST,
@@ -42,5 +48,34 @@ public class AssetSchemaAdapter {
         public float[] getPackedTight() {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
+    }
+
+    public static class GLTFMaterial {
+        public AlphaMode alphaMode = AlphaMode.OPAQUE;
+        public float alphaCutoff = 0.5f;
+        public boolean doubleSided = false;
+        public java.util.List<TextureTransform> transforms = new java.util.ArrayList<>();
+
+        public float[] getPacked(int index) {
+            if (index >= 0 && index < transforms.size()) {
+                return transforms.get(index).getPacked();
+            }
+            return new float[] { 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+        }
+
+        public float[] getPackedTight(int index) {
+            if (index >= 0 && index < transforms.size()) {
+                return transforms.get(index).getPackedTight();
+            }
+            return new float[] { 1.0f, 1.0f, 0.0f, 0.0f, 0.0f };
+        }
+    }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
     }
 }

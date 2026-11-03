@@ -16,7 +16,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {
@@ -80,18 +80,47 @@ export interface JointInfluence {
     weight: number;
 }
 
-export interface GLTFMaterialAdapter {
-    alphaMode: AlphaMode;
-    alphaCutoff: number;
-    doubleSided: boolean;
-    transforms: TextureTransformAdapter[];
+export class GLTFMaterialAdapter {
+    public alphaMode: AlphaMode = AlphaMode.OPAQUE;
+    public alphaCutoff: number = 0.5;
+    public doubleSided: boolean = false;
+    public transforms: TextureTransformAdapter[] = [];
+
+    constructor(
+        alphaMode: AlphaMode = AlphaMode.OPAQUE,
+        alphaCutoff: number = 0.5,
+        doubleSided: boolean = false,
+        transforms: TextureTransformAdapter[] = []
+    ) {
+        this.alphaMode = alphaMode;
+        this.alphaCutoff = alphaCutoff;
+        this.doubleSided = doubleSided;
+        this.transforms = transforms;
+    }
+
+    public getPacked(index: number = 0): Float32Array {
+        if (index >= 0 && index < this.transforms.length) {
+            return this.transforms[index].getPacked();
+        }
+        return new Float32Array([1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    }
+
+    public getPackedTight(index: number = 0): Float32Array {
+        if (index >= 0 && index < this.transforms.length) {
+            return this.transforms[index].getPackedTight();
+        }
+        return new Float32Array([1.0, 1.0, 0.0, 0.0, 0.0]);
+    }
 }
 
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
+    positions: Vector3[] | Float32Array;
+    normals: Vector3[] | Float32Array;
+    texCoords: Vector2[] | Float32Array;
     jointInfluences: JointInfluence[];
+    positionsFlat?: Float32Array;
+    normalsFlat?: Float32Array;
+    texCoordsFlat?: Float32Array;
 }

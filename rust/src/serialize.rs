@@ -63,6 +63,33 @@ fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+fn skip_xml_junk(xml: &str, pos: &mut usize) {
+    while *pos < xml.len() {
+        let rest = &xml[*pos..];
+        if rest.starts_with("<!--") {
+            if let Some(end) = rest.find("-->") {
+                *pos += end + 3;
+            } else {
+                *pos = xml.len();
+                break;
+            }
+        } else if rest.starts_with("<?") {
+            if let Some(end) = rest.find("?>") {
+                *pos += end + 2;
+            } else if let Some(end) = rest.find('>') {
+                *pos += end + 1;
+            } else {
+                *pos = xml.len();
+                break;
+            }
+        } else if rest.as_bytes()[0].is_ascii_whitespace() {
+            *pos += 1;
+        } else {
+            break;
+        }
+    }
+}
+
 pub fn from_xml(xml: &str) -> Llsd {
     let clean = xml.trim();
     if clean.is_empty() { return Llsd::Undefined; }
@@ -71,95 +98,196 @@ pub fn from_xml(xml: &str) -> Llsd {
 }
 
 fn parse_xml_node(xml: &str, pos: &mut usize) -> Llsd {
-    // Find next '<'
-    while *pos < xml.len() {
-        if let Some(open) = xml[*pos..].find('<') {
-            *pos += open;
-            if xml[*pos..].starts_with("<?") || xml[*pos..].starts_with("<!--") {
-                if let Some(close) = xml[*pos..].find('>') {
-                    *pos += close + 1;
-                    continue;
+    skip_xml_junk(xml, pos);
+    if *pos >= xml.len() {
+        return Llsd::Undefined;
+    }
+
+    if !xml[*pos..].starts_with('<') {
+        return Llsd::Undefined;
+    }
+
+    if xml[*pos..].starts_with("</") {
+        return Llsd::Undefined;
+    }
+
+    let close = match xml[*pos..].find('>') {
+        Some(c) => c,
+        None => {
+            *pos = xml.len();
+            return Llsd::Undefined;
+        }
+    };
+
+    let tag_header = &xml[*pos + 1..*pos + close];
+    let self_closing = tag_header.trim_end().ends_with('/');
+    let clean_header = tag_header.trim_end_matches('/').trim();
+    let mut parts = clean_header.split_whitespace();
+    let tag_name = parts.next().unwrap_or("");
+
+    *pos += close + 1;
+
+    if tag_name == "llsd" {
+        if self_closing {
+            return Llsd::Undefined;
+        }
+        let val = parse_xml_node(xml, pos);
+        skip_xml_junk(xml, pos);
+        if *pos < xml.len() && xml[*pos..].starts_with("</") {
+            if let Some(c) = xml[*pos..].find('>') {
+                let close_name = xml[*pos + 2..*pos + c].trim();
+                if close_name == "llsd" {
+                    *pos += c + 1;
                 }
             }
-            // Parse tag
-            if let Some(close) = xml[*pos..].find('>') {
-                let tag_header = &xml[*pos + 1..*pos + close];
-                let self_closing = tag_header.ends_with('/');
-                let clean_header = tag_header.trim_end_matches('/');
-                let mut parts = clean_header.split_whitespace();
-                let tag_name = parts.next().unwrap_or("");
-
-                *pos += close + 1;
-
-                if tag_name == "llsd" {
-                    return parse_xml_node(xml, pos);
-                } else if tag_name == "undef" {
-                    return Llsd::Undefined;
-                }
-
-                let content = if self_closing {
-                    ""
-                } else {
-                    let end_tag = format!("</{}>", tag_name);
-                    if let Some(end_pos) = xml[*pos..].find(&end_tag) {
-                        let c = &xml[*pos..*pos + end_pos];
-                        *pos += end_pos + end_tag.len();
-                        c
-                    } else {
-                        ""
-                    }
-                };
-
-                return match tag_name {
-                    "boolean" => {
-                        let t = content.trim().to_lowercase();
-                        Llsd::Boolean(t == "true" || t == "1" || t == "t")
-                    },
-                    "integer" => Llsd::Integer(content.trim().parse().unwrap_or(0)),
-                    "real" => {
-                        let t = content.trim().to_lowercase();
-                        if t == "nan" { Llsd::Real(f64::NAN) }
-                        else if t == "inf" || t == "+inf" { Llsd::Real(f64::INFINITY) }
-                        else if t == "-inf" { Llsd::Real(f64::NEG_INFINITY) }
-                        else { Llsd::Real(t.parse().unwrap_or(0.0)) }
-                    },
-                    "string" => Llsd::String(content.to_string()),
-                    "uuid" => Llsd::Uuid(LlUuid::from_string(content.trim()).unwrap_or(LlUuid::NULL)),
-                    "date" => Llsd::Date(LlDate::from_iso_string(content.trim()).unwrap_or(LlDate::NULL)),
-                    "uri" => Llsd::Uri(LlUri::new(content.trim())),
-                    "binary" => Llsd::Binary(base64_decode(content.trim())),
-                    "map" => {
-                        let mut map = BTreeMap::new();
-                        let mut inner_pos = 0;
-                        while inner_pos < content.len() {
-                            if let Some(k_start) = content[inner_pos..].find("<key>") {
-                                inner_pos += k_start + 5;
-                                if let Some(k_end) = content[inner_pos..].find("</key>") {
-                                    let key = &content[inner_pos..inner_pos + k_end];
-                                    inner_pos += k_end + 6;
-                                    let val = parse_xml_node(content, &mut inner_pos);
-                                    map.insert(key.to_string(), val);
-                                } else { break; }
-                            } else { break; }
-                        }
-                        Llsd::Map(map)
-                    },
-                    "array" => {
-                        let mut arr = Vec::new();
-                        let mut inner_pos = 0;
-                        while inner_pos < content.len() {
-                            if content[inner_pos..].contains('<') {
-                                arr.push(parse_xml_node(content, &mut inner_pos));
-                            } else { break; }
-                        }
-                        Llsd::Array(arr)
-                    },
-                    _ => Llsd::Undefined,
-                };
-            } else { break; }
-        } else { break; }
+        }
+        return val;
     }
-    Llsd::Undefined
+
+    if tag_name == "undef" {
+        return Llsd::Undefined;
+    }
+
+    if tag_name == "map" {
+        if self_closing {
+            return Llsd::Map(BTreeMap::new());
+        }
+        let mut map = BTreeMap::new();
+        while *pos < xml.len() {
+            skip_xml_junk(xml, pos);
+            if *pos >= xml.len() {
+                break;
+            }
+
+            if xml[*pos..].starts_with("</") {
+                if let Some(c) = xml[*pos..].find('>') {
+                    let close_name = xml[*pos + 2..*pos + c].trim();
+                    if close_name == "map" {
+                        *pos += c + 1;
+                    }
+                }
+                break;
+            }
+
+            if !xml[*pos..].starts_with('<') {
+                break;
+            }
+
+            let key_close = match xml[*pos..].find('>') {
+                Some(c) => c,
+                None => {
+                    *pos = xml.len();
+                    break;
+                }
+            };
+
+            let key_tag_header = &xml[*pos + 1..*pos + key_close];
+            let key_self_closing = key_tag_header.trim_end().ends_with('/');
+            let key_clean = key_tag_header.trim_end_matches('/').trim();
+            let key_tag_name = key_clean.split_whitespace().next().unwrap_or("");
+
+            if key_tag_name != "key" {
+                *pos += key_close + 1;
+                break;
+            }
+
+            *pos += key_close + 1;
+
+            let key = if key_self_closing {
+                String::new()
+            } else if let Some(end_k) = xml[*pos..].find("</") {
+                let k_str = &xml[*pos..*pos + end_k];
+                *pos += end_k;
+                if let Some(c) = xml[*pos..].find('>') {
+                    *pos += c + 1;
+                } else {
+                    *pos = xml.len();
+                }
+                k_str.to_string()
+            } else {
+                let k_str = &xml[*pos..];
+                *pos = xml.len();
+                k_str.to_string()
+            };
+
+            let val = parse_xml_node(xml, pos);
+            map.insert(key, val);
+        }
+        return Llsd::Map(map);
+    }
+
+    if tag_name == "array" {
+        if self_closing {
+            return Llsd::Array(Vec::new());
+        }
+        let mut arr = Vec::new();
+        while *pos < xml.len() {
+            skip_xml_junk(xml, pos);
+            if *pos >= xml.len() {
+                break;
+            }
+
+            if xml[*pos..].starts_with("</") {
+                if let Some(c) = xml[*pos..].find('>') {
+                    let close_name = xml[*pos + 2..*pos + c].trim();
+                    if close_name == "array" {
+                        *pos += c + 1;
+                    }
+                }
+                break;
+            }
+
+            if !xml[*pos..].starts_with('<') {
+                break;
+            }
+
+            let start_pos = *pos;
+            let val = parse_xml_node(xml, pos);
+            if *pos == start_pos {
+                break;
+            }
+            arr.push(val);
+        }
+        return Llsd::Array(arr);
+    }
+
+    let content = if self_closing {
+        ""
+    } else if let Some(end_pos) = xml[*pos..].find("</") {
+        let c = &xml[*pos..*pos + end_pos];
+        *pos += end_pos;
+        if let Some(close_end) = xml[*pos..].find('>') {
+            *pos += close_end + 1;
+        } else {
+            *pos = xml.len();
+        }
+        c
+    } else {
+        let c = &xml[*pos..];
+        *pos = xml.len();
+        c
+    };
+
+    match tag_name {
+        "boolean" => {
+            let t = content.trim().to_lowercase();
+            Llsd::Boolean(t == "true" || t == "1" || t == "t")
+        },
+        "integer" => Llsd::Integer(content.trim().parse().unwrap_or(0)),
+        "real" => {
+            let t = content.trim().to_lowercase();
+            if t == "nan" { Llsd::Real(f64::NAN) }
+            else if t == "inf" || t == "+inf" { Llsd::Real(f64::INFINITY) }
+            else if t == "-inf" { Llsd::Real(f64::NEG_INFINITY) }
+            else { Llsd::Real(t.parse().unwrap_or(0.0)) }
+        },
+        "string" => Llsd::String(content.to_string()),
+        "uuid" => Llsd::Uuid(LlUuid::from_string(content.trim()).unwrap_or(LlUuid::NULL)),
+        "date" => Llsd::Date(LlDate::from_iso_string(content.trim()).unwrap_or(LlDate::NULL)),
+        "uri" => Llsd::Uri(LlUri::new(content.trim())),
+        "binary" => Llsd::Binary(base64_decode(content.trim())),
+        _ => Llsd::Undefined,
+    }
 }
 
 // --- Binary ---
@@ -498,5 +626,316 @@ fn parse_quoted(text: &str, pos: &mut usize) -> String {
     res
 }
 
-pub fn to_json(sd: &Llsd) -> String { to_notation(sd) }
-pub fn from_json(json: &str) -> Llsd { from_notation(json) }
+pub fn to_json(sd: &Llsd) -> String {
+    let mut out = String::new();
+    write_json(&mut out, sd);
+    out
+}
+
+fn write_json(out: &mut String, sd: &Llsd) {
+    match sd {
+        Llsd::Undefined => out.push_str("null"),
+        Llsd::Boolean(b) => out.push_str(if *b { "true" } else { "false" }),
+        Llsd::Integer(i) => out.push_str(&i.to_string()),
+        Llsd::Real(r) => out.push_str(&format_real(*r)),
+        Llsd::String(s) => write_json_string(out, s),
+        Llsd::Uuid(u) => write_json_string(out, &u.to_string()),
+        Llsd::Date(d) => write_json_string(out, &d.to_iso_string()),
+        Llsd::Uri(u) => write_json_string(out, u.as_str()),
+        Llsd::Binary(b) => write_json_string(out, &base64_encode(b)),
+        Llsd::Map(m) => {
+            out.push('{');
+            let mut first = true;
+            for (k, v) in m {
+                if !first {
+                    out.push(',');
+                }
+                first = false;
+                write_json_string(out, k);
+                out.push(':');
+                write_json(out, v);
+            }
+            out.push('}');
+        }
+        Llsd::Array(a) => {
+            out.push('[');
+            for (i, v) in a.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                write_json(out, v);
+            }
+            out.push(']');
+        }
+    }
+}
+
+fn format_real(r: f64) -> String {
+    if r.is_nan() || r.is_infinite() {
+        "null".to_string()
+    } else {
+        let s = r.to_string();
+        if !s.contains('.') && !s.contains('e') && !s.contains('E') {
+            format!("{}.0", s)
+        } else {
+            s
+        }
+    }
+}
+
+fn write_json_string(out: &mut String, s: &str) {
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\x08' => out.push_str("\\b"),
+            '\x0C' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+}
+
+pub fn from_json(json: &str) -> Llsd {
+    let mut pos = 0;
+    skip_json_ws(json, &mut pos);
+    if pos >= json.len() {
+        return Llsd::Undefined;
+    }
+    parse_json_value(json, &mut pos).unwrap_or(Llsd::Undefined)
+}
+
+fn skip_json_ws(text: &str, pos: &mut usize) {
+    let bytes = text.as_bytes();
+    while *pos < text.len()
+        && (bytes[*pos] == b' '
+            || bytes[*pos] == b'\t'
+            || bytes[*pos] == b'\n'
+            || bytes[*pos] == b'\r')
+    {
+        *pos += 1;
+    }
+}
+
+fn parse_json_value(text: &str, pos: &mut usize) -> Option<Llsd> {
+    skip_json_ws(text, pos);
+    if *pos >= text.len() {
+        return None;
+    }
+    let b = text.as_bytes()[*pos];
+    match b {
+        b'n' => {
+            if text[*pos..].starts_with("null") {
+                *pos += 4;
+                Some(Llsd::Undefined)
+            } else {
+                None
+            }
+        }
+        b't' => {
+            if text[*pos..].starts_with("true") {
+                *pos += 4;
+                Some(Llsd::Boolean(true))
+            } else {
+                None
+            }
+        }
+        b'f' => {
+            if text[*pos..].starts_with("false") {
+                *pos += 5;
+                Some(Llsd::Boolean(false))
+            } else {
+                None
+            }
+        }
+        b'"' => {
+            let s = parse_json_string(text, pos)?;
+            Some(Llsd::String(s))
+        }
+        b'{' => parse_json_object(text, pos),
+        b'[' => parse_json_array(text, pos),
+        b'0'..=b'9' | b'-' => parse_json_number(text, pos),
+        _ => None,
+    }
+}
+
+fn parse_json_string(text: &str, pos: &mut usize) -> Option<String> {
+    let bytes = text.as_bytes();
+    if *pos >= text.len() || bytes[*pos] != b'"' {
+        return None;
+    }
+    *pos += 1; // consume opening "
+    let mut res = String::new();
+    while *pos < text.len() {
+        let b = bytes[*pos];
+        if b == b'"' {
+            *pos += 1; // consume closing "
+            return Some(res);
+        }
+        if b == b'\\' {
+            *pos += 1;
+            if *pos >= text.len() {
+                return None;
+            }
+            let esc = bytes[*pos];
+            *pos += 1;
+            match esc {
+                b'"' => res.push('"'),
+                b'\\' => res.push('\\'),
+                b'/' => res.push('/'),
+                b'b' => res.push('\x08'),
+                b'f' => res.push('\x0C'),
+                b'n' => res.push('\n'),
+                b'r' => res.push('\r'),
+                b't' => res.push('\t'),
+                b'u' => {
+                    if *pos + 4 > text.len() {
+                        return None;
+                    }
+                    let hex_str = &text[*pos..*pos + 4];
+                    *pos += 4;
+                    let code = u16::from_str_radix(hex_str, 16).ok()?;
+                    if (0xD800..=0xDBFF).contains(&code) {
+                        // High surrogate
+                        if *pos + 6 <= text.len() && &bytes[*pos..*pos + 2] == b"\\u" {
+                            let hex_str2 = &text[*pos + 2..*pos + 6];
+                            if let Ok(code2) = u16::from_str_radix(hex_str2, 16) {
+                                if (0xDC00..=0xDFFF).contains(&code2) {
+                                    *pos += 6;
+                                    let cp = 0x10000
+                                        + (((code as u32 - 0xD800) << 10)
+                                            | (code2 as u32 - 0xDC00));
+                                    if let Some(ch) = std::char::from_u32(cp) {
+                                        res.push(ch);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        res.push(std::char::REPLACEMENT_CHARACTER);
+                    } else if let Some(ch) = std::char::from_u32(code as u32) {
+                        res.push(ch);
+                    } else {
+                        res.push(std::char::REPLACEMENT_CHARACTER);
+                    }
+                }
+                _ => return None,
+            }
+        } else {
+            let ch = text[*pos..].chars().next()?;
+            res.push(ch);
+            *pos += ch.len_utf8();
+        }
+    }
+    None
+}
+
+fn parse_json_number(text: &str, pos: &mut usize) -> Option<Llsd> {
+    let start = *pos;
+    let bytes = text.as_bytes();
+    let mut is_float = false;
+
+    if *pos < text.len() && bytes[*pos] == b'-' {
+        *pos += 1;
+    }
+
+    while *pos < text.len() {
+        let b = bytes[*pos];
+        if b == b'.' || b == b'e' || b == b'E' {
+            is_float = true;
+            *pos += 1;
+        } else if b.is_ascii_digit() || b == b'+' || b == b'-' {
+            *pos += 1;
+        } else {
+            break;
+        }
+    }
+
+    let num_str = &text[start..*pos];
+    if is_float {
+        let r: f64 = num_str.parse().ok()?;
+        Some(Llsd::Real(r))
+    } else if let Ok(i) = num_str.parse::<i64>() {
+        Some(Llsd::Integer(i))
+    } else if let Ok(r) = num_str.parse::<f64>() {
+        Some(Llsd::Real(r))
+    } else {
+        None
+    }
+}
+
+fn parse_json_object(text: &str, pos: &mut usize) -> Option<Llsd> {
+    if *pos >= text.len() || text.as_bytes()[*pos] != b'{' {
+        return None;
+    }
+    *pos += 1; // consume '{'
+    let mut map = BTreeMap::new();
+    skip_json_ws(text, pos);
+    if *pos < text.len() && text.as_bytes()[*pos] == b'}' {
+        *pos += 1; // consume '}'
+        return Some(Llsd::Map(map));
+    }
+
+    while *pos < text.len() {
+        skip_json_ws(text, pos);
+        if *pos >= text.len() || text.as_bytes()[*pos] != b'"' {
+            return None;
+        }
+        let key = parse_json_string(text, pos)?;
+        skip_json_ws(text, pos);
+        if *pos >= text.len() || text.as_bytes()[*pos] != b':' {
+            return None;
+        }
+        *pos += 1; // consume ':'
+        skip_json_ws(text, pos);
+        let val = parse_json_value(text, pos)?;
+        map.insert(key, val);
+        skip_json_ws(text, pos);
+        if *pos < text.len() && text.as_bytes()[*pos] == b',' {
+            *pos += 1; // consume ','
+        } else if *pos < text.len() && text.as_bytes()[*pos] == b'}' {
+            *pos += 1; // consume '}'
+            break;
+        } else {
+            return None;
+        }
+    }
+    Some(Llsd::Map(map))
+}
+
+fn parse_json_array(text: &str, pos: &mut usize) -> Option<Llsd> {
+    if *pos >= text.len() || text.as_bytes()[*pos] != b'[' {
+        return None;
+    }
+    *pos += 1; // consume '['
+    let mut arr = Vec::new();
+    skip_json_ws(text, pos);
+    if *pos < text.len() && text.as_bytes()[*pos] == b']' {
+        *pos += 1; // consume ']'
+        return Some(Llsd::Array(arr));
+    }
+
+    while *pos < text.len() {
+        skip_json_ws(text, pos);
+        let val = parse_json_value(text, pos)?;
+        arr.push(val);
+        skip_json_ws(text, pos);
+        if *pos < text.len() && text.as_bytes()[*pos] == b',' {
+            *pos += 1; // consume ','
+        } else if *pos < text.len() && text.as_bytes()[*pos] == b']' {
+            *pos += 1; // consume ']'
+            break;
+        } else {
+            return None;
+        }
+    }
+    Some(Llsd::Array(arr))
+}
+
