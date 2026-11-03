@@ -6,10 +6,14 @@ pub struct LlDate {
 }
 
 impl LlDate {
-    pub const NULL: LlDate = LlDate { seconds_since_epoch: 0.0 };
+    pub const NULL: LlDate = LlDate {
+        seconds_since_epoch: 0.0,
+    };
 
     pub fn new(seconds: f64) -> Self {
-        LlDate { seconds_since_epoch: seconds }
+        LlDate {
+            seconds_since_epoch: seconds,
+        }
     }
 
     pub fn is_null(&self) -> bool {
@@ -22,13 +26,19 @@ impl LlDate {
 
     pub fn from_iso_string(s: &str) -> Option<Self> {
         let clean = s.trim();
-        if clean.is_empty() { return None; }
+        if clean.is_empty() {
+            return None;
+        }
         // Basic ISO date parser YYYY-MM-DDTHH:MM:SS
         let parts: Vec<&str> = clean.trim_matches('Z').split('T').collect();
-        if parts.len() != 2 { return None; }
+        if parts.len() != 2 {
+            return None;
+        }
         let date_parts: Vec<i32> = parts[0].split('-').filter_map(|p| p.parse().ok()).collect();
         let time_parts: Vec<f64> = parts[1].split(':').filter_map(|p| p.parse().ok()).collect();
-        if date_parts.len() != 3 || time_parts.len() != 3 { return None; }
+        if date_parts.len() != 3 || time_parts.len() != 3 {
+            return None;
+        }
 
         let year = date_parts[0];
         let month = date_parts[1];
@@ -48,8 +58,11 @@ impl LlDate {
         }
         days += day - 1;
 
-        let total_secs = (days as f64) * 86400.0 + (hour as f64) * 3600.0 + (min as f64) * 60.0 + sec;
-        Some(LlDate { seconds_since_epoch: total_secs })
+        let total_secs =
+            (days as f64) * 86400.0 + (hour as f64) * 3600.0 + (min as f64) * 60.0 + sec;
+        Some(LlDate {
+            seconds_since_epoch: total_secs,
+        })
     }
 
     pub fn to_iso_string(&self) -> String {
@@ -84,9 +97,20 @@ impl LlDate {
         let day = day_of_year + 1;
 
         if frac > 0.001 {
-            format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:05.2}Z", year, month, day, hours, mins, (secs as f64) + frac)
+            format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}:{:05.2}Z",
+                year,
+                month,
+                day,
+                hours,
+                mins,
+                (secs as f64) + frac
+            )
         } else {
-            format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hours, mins, secs)
+            format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+                year, month, day, hours, mins, secs
+            )
         }
     }
 }

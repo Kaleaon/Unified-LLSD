@@ -4,9 +4,9 @@ export class LLDate {
   public static readonly nullDate = new LLDate(0);
 
   constructor(secondsOrIso?: number | string) {
-    if (typeof secondsOrIso === 'number') {
+    if (typeof secondsOrIso === "number") {
       this.secondsSinceEpoch = secondsOrIso;
-    } else if (typeof secondsOrIso === 'string' && secondsOrIso.length > 0) {
+    } else if (typeof secondsOrIso === "string" && secondsOrIso.length > 0) {
       const dt = new Date(secondsOrIso);
       this.secondsSinceEpoch = isNaN(dt.getTime()) ? 0 : dt.getTime() / 1000.0;
     } else {

@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-use std::ops::Index;
-use super::uuid::LlUuid;
 use super::date::LlDate;
 use super::uri::LlUri;
+use super::uuid::LlUuid;
+use std::collections::BTreeMap;
+use std::ops::Index;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Llsd {
@@ -46,7 +46,13 @@ impl Llsd {
 
     pub fn as_i64(&self) -> i64 {
         match self {
-            Llsd::Boolean(b) => if *b { 1 } else { 0 },
+            Llsd::Boolean(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
             Llsd::Integer(i) => *i,
             Llsd::Real(r) => *r as i64,
             Llsd::String(s) => s.parse().unwrap_or(0),
@@ -60,7 +66,13 @@ impl Llsd {
 
     pub fn as_f64(&self) -> f64 {
         match self {
-            Llsd::Boolean(b) => if *b { 1.0 } else { 0.0 },
+            Llsd::Boolean(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
             Llsd::Integer(i) => *i as f64,
             Llsd::Real(r) => *r,
             Llsd::String(s) => match s.to_lowercase().as_str() {
@@ -75,13 +87,27 @@ impl Llsd {
 
     pub fn as_string(&self) -> String {
         match self {
-            Llsd::Boolean(b) => if *b { "true".to_string() } else { "false".to_string() },
+            Llsd::Boolean(b) => {
+                if *b {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            }
             Llsd::Integer(i) => i.to_string(),
             Llsd::Real(r) => {
-                if r.is_nan() { "nan".to_string() }
-                else if r.is_infinite() { if *r > 0.0 { "inf".to_string() } else { "-inf".to_string() } }
-                else { r.to_string() }
-            },
+                if r.is_nan() {
+                    "nan".to_string()
+                } else if r.is_infinite() {
+                    if *r > 0.0 {
+                        "inf".to_string()
+                    } else {
+                        "-inf".to_string()
+                    }
+                } else {
+                    r.to_string()
+                }
+            }
             Llsd::String(s) => s.clone(),
             Llsd::Uuid(u) => u.to_string(),
             Llsd::Date(d) => d.to_iso_string(),
@@ -185,8 +211,16 @@ pub fn base64_encode(data: &[u8]) -> String {
     let mut i = 0;
     while i < data.len() {
         let b0 = data[i] as u32;
-        let b1 = if i + 1 < data.len() { data[i + 1] as u32 } else { 0 };
-        let b2 = if i + 2 < data.len() { data[i + 2] as u32 } else { 0 };
+        let b1 = if i + 1 < data.len() {
+            data[i + 1] as u32
+        } else {
+            0
+        };
+        let b2 = if i + 2 < data.len() {
+            data[i + 2] as u32
+        } else {
+            0
+        };
 
         let triple = (b0 << 16) | (b1 << 8) | b2;
 
@@ -211,7 +245,10 @@ pub fn base64_encode(data: &[u8]) -> String {
 }
 
 pub fn base64_decode(s: &str) -> Vec<u8> {
-    let clean: String = s.chars().filter(|c| !c.is_whitespace() && *c != '=').collect();
+    let clean: String = s
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '=')
+        .collect();
     let mut bytes = Vec::new();
     let chars: Vec<char> = clean.chars().collect();
 
@@ -229,9 +266,21 @@ pub fn base64_decode(s: &str) -> Vec<u8> {
     let mut i = 0;
     while i < chars.len() {
         let c0 = val(chars[i]);
-        let c1 = if i + 1 < chars.len() { val(chars[i + 1]) } else { 0 };
-        let c2 = if i + 2 < chars.len() { val(chars[i + 2]) } else { 0 };
-        let c3 = if i + 3 < chars.len() { val(chars[i + 3]) } else { 0 };
+        let c1 = if i + 1 < chars.len() {
+            val(chars[i + 1])
+        } else {
+            0
+        };
+        let c2 = if i + 2 < chars.len() {
+            val(chars[i + 2])
+        } else {
+            0
+        };
+        let c3 = if i + 3 < chars.len() {
+            val(chars[i + 3])
+        } else {
+            0
+        };
 
         let triple = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
 

@@ -1,19 +1,19 @@
-import { LLUUID } from './lluuid.js';
-import { LLDate } from './lldate.js';
-import { LLURI } from './lluri.js';
+import { LLUUID } from "./lluuid.js";
+import { LLDate } from "./lldate.js";
+import { LLURI } from "./lluri.js";
 
 export enum LLSDType {
-  Undefined = 'undefined',
-  Boolean = 'boolean',
-  Integer = 'integer',
-  Real = 'real',
-  String = 'string',
-  UUID = 'uuid',
-  Date = 'date',
-  URI = 'uri',
-  Binary = 'binary',
-  Map = 'map',
-  Array = 'array',
+  Undefined = "undefined",
+  Boolean = "boolean",
+  Integer = "integer",
+  Real = "real",
+  String = "string",
+  UUID = "uuid",
+  Date = "date",
+  URI = "uri",
+  Binary = "binary",
+  Map = "map",
+  Array = "array",
 }
 
 export class LLSD {
@@ -26,16 +26,17 @@ export class LLSD {
     if (val === undefined || val === null) {
       this.type = LLSDType.Undefined;
       this.value = null;
-    } else if (typeof val === 'boolean') {
+    } else if (typeof val === "boolean") {
       this.type = LLSDType.Boolean;
       this.value = val;
-    } else if (typeof val === 'bigint') {
+    } else if (typeof val === "bigint") {
       this.type = LLSDType.Integer;
       this.value = val;
-    } else if (typeof val === 'number') {
-      this.type = type || (Number.isInteger(val) ? LLSDType.Integer : LLSDType.Real);
+    } else if (typeof val === "number") {
+      this.type =
+        type || (Number.isInteger(val) ? LLSDType.Integer : LLSDType.Real);
       this.value = val;
-    } else if (typeof val === 'string') {
+    } else if (typeof val === "string") {
       this.type = LLSDType.String;
       this.value = val;
     } else if (val instanceof LLUUID) {
@@ -62,12 +63,17 @@ export class LLSD {
     }
   }
 
-  public get isUndefined(): boolean { return this.type === LLSDType.Undefined; }
-  public get isDefined(): boolean { return !this.isUndefined; }
+  public get isUndefined(): boolean {
+    return this.type === LLSDType.Undefined;
+  }
+  public get isDefined(): boolean {
+    return !this.isUndefined;
+  }
 
   public asBoolean(): boolean {
     if (this.type === LLSDType.Boolean) return this.value;
-    if (this.type === LLSDType.Integer) return this.value !== 0 && this.value !== 0n;
+    if (this.type === LLSDType.Integer)
+      return this.value !== 0 && this.value !== 0n;
     if (this.type === LLSDType.Real) return this.value !== 0;
     if (this.type === LLSDType.String) return this.value.length > 0;
     return false;
@@ -82,13 +88,18 @@ export class LLSD {
     if (this.type === LLSDType.Boolean) return this.value ? 1n : 0n;
     if (this.type === LLSDType.Real) return BigInt(Math.trunc(this.value));
     if (this.type === LLSDType.String) {
-      try { return BigInt(this.value); } catch { return 0n; }
+      try {
+        return BigInt(this.value);
+      } catch {
+        return 0n;
+      }
     }
     return 0n;
   }
 
   public asReal(): number {
-    if (this.type === LLSDType.Real || this.type === LLSDType.Integer) return Number(this.value);
+    if (this.type === LLSDType.Real || this.type === LLSDType.Integer)
+      return Number(this.value);
     if (this.type === LLSDType.Boolean) return this.value ? 1 : 0;
     if (this.type === LLSDType.String) {
       const parsed = parseFloat(this.value);
@@ -99,12 +110,13 @@ export class LLSD {
 
   public asString(): string {
     if (this.type === LLSDType.String) return this.value;
-    if (this.type === LLSDType.Boolean) return this.value ? 'true' : 'false';
-    if (this.type === LLSDType.Integer || this.type === LLSDType.Real) return String(this.value);
+    if (this.type === LLSDType.Boolean) return this.value ? "true" : "false";
+    if (this.type === LLSDType.Integer || this.type === LLSDType.Real)
+      return String(this.value);
     if (this.type === LLSDType.UUID) return this.value.toString();
     if (this.type === LLSDType.Date) return this.value.toISOString();
     if (this.type === LLSDType.URI) return this.value.asString();
-    return '';
+    return "";
   }
 
   public asUUID(): LLUUID {
@@ -122,7 +134,7 @@ export class LLSD {
   public asURI(): LLURI {
     if (this.type === LLSDType.URI) return this.value;
     if (this.type === LLSDType.String) return new LLURI(this.value);
-    return new LLURI('');
+    return new LLURI("");
   }
 
   public asBinary(): Uint8Array {
@@ -131,10 +143,12 @@ export class LLSD {
   }
 
   public get(keyOrIndex: string | number): LLSD {
-    if (this.type === LLSDType.Map && typeof keyOrIndex === 'string') {
-      return (this.value as Map<string, LLSD>).get(keyOrIndex) || LLSD.undefined;
+    if (this.type === LLSDType.Map && typeof keyOrIndex === "string") {
+      return (
+        (this.value as Map<string, LLSD>).get(keyOrIndex) || LLSD.undefined
+      );
     }
-    if (this.type === LLSDType.Array && typeof keyOrIndex === 'number') {
+    if (this.type === LLSDType.Array && typeof keyOrIndex === "number") {
       const arr = this.value as LLSD[];
       if (keyOrIndex >= 0 && keyOrIndex < arr.length) return arr[keyOrIndex];
     }
@@ -142,9 +156,9 @@ export class LLSD {
   }
 
   public set(keyOrIndex: string | number, val: LLSD): void {
-    if (this.type === LLSDType.Map && typeof keyOrIndex === 'string') {
+    if (this.type === LLSDType.Map && typeof keyOrIndex === "string") {
       (this.value as Map<string, LLSD>).set(keyOrIndex, val);
-    } else if (this.type === LLSDType.Array && typeof keyOrIndex === 'number') {
+    } else if (this.type === LLSDType.Array && typeof keyOrIndex === "number") {
       const arr = this.value as LLSD[];
       while (arr.length <= keyOrIndex) arr.push(LLSD.undefined);
       arr[keyOrIndex] = val;

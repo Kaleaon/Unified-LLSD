@@ -1,0 +1,68 @@
+# Unified-LLSD Pre-Commit Guardrails Configuration
+# Covers all 8 SDK language targets: Python, C++, C#, Java, Kotlin, Rust, Dart, Swift, TypeScript/JSON
+
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+
+  # Python Formatting & Linting
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        types_or: [python]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  # C++, C#, Java Formatting via clang-format
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.5
+    hooks:
+      - id: clang-format
+        types_or: [c++, c, java, c#]
+
+  # TypeScript / JavaScript / JSON / YAML / Markdown Formatting via Prettier
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        types_or: [ts, javascript, json, yaml, markdown]
+
+  # Local hooks for language targets using installed CLI toolchains (Rust, Dart, Kotlin, Swift)
+  - repo: local
+    hooks:
+      - id: rustfmt
+        name: rustfmt check
+        entry: bash -c 'if command -v rustfmt >/dev/null 2>&1; then exec rustfmt --check "$@"; elif command -v cargo >/dev/null 2>&1; then exec cargo fmt -- --check; else exit 0; fi' --
+        language: system
+        files: \.rs$
+
+      - id: dart-format
+        name: dart format check
+        entry: bash -c 'if command -v dart >/dev/null 2>&1; then exec dart format --output=none --set-exit-if-changed "$@"; else exit 0; fi' --
+        language: system
+        files: \.dart$
+
+      - id: kotlin-format
+        name: kotlin format check
+        entry: bash -c 'if command -v ktlint >/dev/null 2>&1; then exec ktlint "$@"; elif command -v ktfmt >/dev/null 2>&1; then exec ktfmt --check "$@"; else exit 0; fi' --
+        language: system
+        files: \.(kt|kts)$
+
+      - id: swift-format
+        name: swift format check
+        entry: bash -c 'if command -v swift-format >/dev/null 2>&1; then exec swift-format lint "$@"; elif command -v swift >/dev/null 2>&1; then exec swift format lint "$@"; else exit 0; fi' --
+        language: system
+        files: \.swift$

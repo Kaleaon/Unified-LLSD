@@ -27,7 +27,8 @@ class LLSD {
   LLSD._(this.type, this._value);
 
   factory LLSD.boolVal(bool v) => LLSD._(LLSDType.boolean, v);
-  factory LLSD.intVal(int v) => LLSD._(LLSDType.integer, v); // 64-bit int in Dart
+  factory LLSD.intVal(int v) =>
+      LLSD._(LLSDType.integer, v); // 64-bit int in Dart
   factory LLSD.realVal(double v) => LLSD._(LLSDType.real, v);
   factory LLSD.stringVal(String v) => LLSD._(LLSDType.string, v);
   factory LLSD.uuidVal(LLUUID v) => LLSD._(LLSDType.uuid, v);
@@ -42,50 +43,79 @@ class LLSD {
 
   bool asBoolean() {
     switch (type) {
-      case LLSDType.boolean: return _value as bool;
-      case LLSDType.integer: return (_value as int) != 0;
-      case LLSDType.real: return (_value as double) != 0.0;
-      case LLSDType.string: return (_value as String).isNotEmpty;
-      case LLSDType.uuid: return (_value as LLUUID).notNull;
-      case LLSDType.date: return (_value as LLDate).notNull;
-      case LLSDType.uri: return (_value as LLURI).asString().isNotEmpty;
-      case LLSDType.binary: return (_value as Uint8List).isNotEmpty;
-      case LLSDType.map: return (_value as Map<String, LLSD>).isNotEmpty;
-      case LLSDType.array: return (_value as List<LLSD>).isNotEmpty;
-      case LLSDType.undefined: return false;
+      case LLSDType.boolean:
+        return _value as bool;
+      case LLSDType.integer:
+        return (_value as int) != 0;
+      case LLSDType.real:
+        return (_value as double) != 0.0;
+      case LLSDType.string:
+        return (_value as String).isNotEmpty;
+      case LLSDType.uuid:
+        return (_value as LLUUID).notNull;
+      case LLSDType.date:
+        return (_value as LLDate).notNull;
+      case LLSDType.uri:
+        return (_value as LLURI).asString().isNotEmpty;
+      case LLSDType.binary:
+        return (_value as Uint8List).isNotEmpty;
+      case LLSDType.map:
+        return (_value as Map<String, LLSD>).isNotEmpty;
+      case LLSDType.array:
+        return (_value as List<LLSD>).isNotEmpty;
+      case LLSDType.undefined:
+        return false;
     }
   }
 
   int asInt() {
     switch (type) {
-      case LLSDType.boolean: return (_value as bool) ? 1 : 0;
-      case LLSDType.integer: return _value as int;
-      case LLSDType.real: return (_value as double).toInt();
-      case LLSDType.string: return int.tryParse(_value as String) ?? 0;
-      default: return 0;
+      case LLSDType.boolean:
+        return (_value as bool) ? 1 : 0;
+      case LLSDType.integer:
+        return _value as int;
+      case LLSDType.real:
+        return (_value as double).toInt();
+      case LLSDType.string:
+        return int.tryParse(_value as String) ?? 0;
+      default:
+        return 0;
     }
   }
 
   double asReal() {
     switch (type) {
-      case LLSDType.boolean: return (_value as bool) ? 1.0 : 0.0;
-      case LLSDType.integer: return (_value as int).toDouble();
-      case LLSDType.real: return _value as double;
-      case LLSDType.string: return double.tryParse(_value as String) ?? 0.0;
-      default: return 0.0;
+      case LLSDType.boolean:
+        return (_value as bool) ? 1.0 : 0.0;
+      case LLSDType.integer:
+        return (_value as int).toDouble();
+      case LLSDType.real:
+        return _value as double;
+      case LLSDType.string:
+        return double.tryParse(_value as String) ?? 0.0;
+      default:
+        return 0.0;
     }
   }
 
   String asString() {
     switch (type) {
-      case LLSDType.boolean: return (_value as bool) ? 'true' : 'false';
-      case LLSDType.integer: return (_value as int).toString();
-      case LLSDType.real: return (_value as double).toString();
-      case LLSDType.string: return _value as String;
-      case LLSDType.uuid: return (_value as LLUUID).toString();
-      case LLSDType.date: return (_value as LLDate).toISOString();
-      case LLSDType.uri: return (_value as LLURI).asString();
-      default: return '';
+      case LLSDType.boolean:
+        return (_value as bool) ? 'true' : 'false';
+      case LLSDType.integer:
+        return (_value as int).toString();
+      case LLSDType.real:
+        return (_value as double).toString();
+      case LLSDType.string:
+        return _value as String;
+      case LLSDType.uuid:
+        return (_value as LLUUID).toString();
+      case LLSDType.date:
+        return (_value as LLDate).toISOString();
+      case LLSDType.uri:
+        return (_value as LLURI).asString();
+      default:
+        return '';
     }
   }
 
