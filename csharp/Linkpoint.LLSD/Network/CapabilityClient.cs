@@ -14,6 +14,13 @@ namespace Linkpoint.LLSD.Network
         public LLSDValue Body { get; set; } = LLSDValue.Undefined;
     }
 
+    public class EventQueuePollResult
+    {
+        public List<EventQueueEvent> Events { get; set; } = new List<EventQueueEvent>();
+        public int? Id { get; set; }
+        public int? NextAck => Id;
+    }
+
     /// <summary>
     /// Helper client for Second Life capability requests and EventQueueGet polling.
     /// </summary>
@@ -28,6 +35,7 @@ namespace Linkpoint.LLSD.Network
 
         /// <summary>
         /// Request seed capability dictionary or request individual capabilities.
+        /// Inspects response Content-Type header to parse binary, XML, or notation LLSD payloads.
         /// </summary>
         public async Task<LLSDValue> PostLLSDAsync(string capabilityUrl, LLSDValue payload, CancellationToken cancellationToken = default)
         {
@@ -43,40 +51,70 @@ namespace Linkpoint.LLSD.Network
             response.EnsureSuccessStatusCode();
 
             byte[] responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            string? contentType = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
+
+            if (contentType == "application/llsd+binary")
+            {
+                return LLSDSerialize.FromBinary(responseBytes);
+            }
+            if (contentType == "application/llsd+notation" || contentType == "text/plain")
+            {
+                string text = Encoding.UTF8.GetString(responseBytes);
+                return LLSDSerialize.FromNotation(text);
+            }
+            if (contentType == "application/llsd+xml" || contentType == "text/xml" || contentType == "application/xml")
+            {
+                string text = Encoding.UTF8.GetString(responseBytes);
+                return LLSDSerialize.FromXML(text);
+            }
+
             return LLSDSerialize.Parse(responseBytes);
         }
 
         /// <summary>
-        /// Polls EventQueueGet capability and parses array of events.
+        /// Polls EventQueueGet capability and parses array of events, extracting sequence ID token.
         /// </summary>
-        public async Task<List<EventQueueEvent>> PollEventQueueAsync(string eventQueueUrl, int ack = 0, CancellationToken cancellationToken = default)
+        public async Task<EventQueuePollResult> PollEventQueueAsync(string eventQueueUrl, int? ack = null, CancellationToken cancellationToken = default)
         {
             var reqMap = new Dictionary<string, LLSDValue>
             {
-                ["ack"] = LLSDValue.FromInteger(ack),
                 ["done"] = LLSDValue.FromBoolean(false)
             };
 
+            if (ack.HasValue)
+            {
+                reqMap["ack"] = LLSDValue.FromInteger(ack.Value);
+            }
+
             LLSDValue responseLlsd = await PostLLSDAsync(eventQueueUrl, LLSDValue.FromMap(reqMap), cancellationToken).ConfigureAwait(false);
 
-            var events = new List<EventQueueEvent>();
-            if (responseLlsd.IsMap && responseLlsd.Has("events"))
+            var result = new EventQueuePollResult();
+
+            if (responseLlsd.IsMap)
             {
-                LLSDValue eventsArray = responseLlsd["events"];
-                foreach (LLSDValue evtItem in eventsArray.AsArray())
+                if (responseLlsd.Has("id"))
                 {
-                    if (evtItem.IsMap)
+                    result.Id = (int)responseLlsd["id"].AsInteger();
+                }
+
+                if (responseLlsd.Has("events"))
+                {
+                    LLSDValue eventsArray = responseLlsd["events"];
+                    foreach (LLSDValue evtItem in eventsArray.AsArray())
                     {
-                        events.Add(new EventQueueEvent
+                        if (evtItem.IsMap)
                         {
-                            EventName = evtItem["message"].AsString(),
-                            Body = evtItem["body"]
-                        });
+                            result.Events.Add(new EventQueueEvent
+                            {
+                                EventName = evtItem["message"].AsString(),
+                                Body = evtItem["body"]
+                            });
+                        }
                     }
                 }
             }
 
-            return events;
+            return result;
         }
     }
 }

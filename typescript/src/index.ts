@@ -6,4 +6,4 @@ export * from './llsd_serialize.js';
 export * from './packet_codec.js';
 export * from './circuit_manager.js';
 export * from './capability_client.js';
-
+export * from './event_queue_client.js';
