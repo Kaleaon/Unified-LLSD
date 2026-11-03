@@ -10,7 +10,7 @@ using Linkpoint.LLSD.Network;
 
 namespace Linkpoint.LLSD.Tests
 {
-    public class MockHttpMessageHandler : HttpMessageHandler
+    public class CapabilityClientMockHandler : HttpMessageHandler
     {
         public List<HttpRequestMessage> Requests { get; } = new List<HttpRequestMessage>();
         public List<byte[]> RequestBodies { get; } = new List<byte[]>();
@@ -54,7 +54,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestPostLLSDAsyncFormatsAndHeaders()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var client = new CapabilityClient(new HttpClient(handler));
 
             var payloadMap = new Dictionary<string, LLSDValue>
@@ -103,7 +103,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestTransientStatusCodeRetriesAndRecovery()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var options = new CapabilityClientOptions
             {
                 BaseDelay = TimeSpan.FromMilliseconds(1),
@@ -131,7 +131,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestTransientErrorMaxRetriesExceeded()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var options = new CapabilityClientOptions
             {
                 BaseDelay = TimeSpan.FromMilliseconds(1),
@@ -156,7 +156,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestNonTransientErrorFailsFast()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var options = new CapabilityClientOptions
             {
                 BaseDelay = TimeSpan.FromMilliseconds(1),
@@ -177,7 +177,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestNetworkExceptionRetry()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var options = new CapabilityClientOptions
             {
                 BaseDelay = TimeSpan.FromMilliseconds(1),
@@ -209,7 +209,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestFastCancellation()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var client = new CapabilityClient(new HttpClient(handler));
 
             using var cts = new CancellationTokenSource();
@@ -226,7 +226,7 @@ namespace Linkpoint.LLSD.Tests
         [Fact]
         public async Task TestPollEventQueueAsyncWithFormat()
         {
-            var handler = new MockHttpMessageHandler();
+            var handler = new CapabilityClientMockHandler();
             var client = new CapabilityClient(new HttpClient(handler));
 
             var eventMap = new Dictionary<string, LLSDValue>

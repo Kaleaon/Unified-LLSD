@@ -15,6 +15,15 @@ namespace Linkpoint.LLSD.Network
         public LLSDValue Body { get; set; } = LLSDValue.Undefined;
     }
 
+    public class EventQueuePollResult
+    {
+        public List<EventQueueEvent> Events { get; set; } = new List<EventQueueEvent>();
+        public int? Id { get; set; }
+        public int? NextAck => Id;
+
+        public static implicit operator List<EventQueueEvent>(EventQueuePollResult? result) => result?.Events ?? new List<EventQueueEvent>();
+    }
+
     /// <summary>
     /// Configuration options for <see cref="CapabilityClient"/>.
     /// </summary>
@@ -51,10 +60,20 @@ namespace Linkpoint.LLSD.Network
 
         /// <summary>
         /// Request seed capability dictionary or request individual capabilities.
+        /// Inspects response Content-Type header to parse binary, XML, or notation LLSD payloads.
         /// </summary>
         public Task<LLSDValue> PostLLSDAsync(string capabilityUrl, LLSDValue payload, CancellationToken cancellationToken)
         {
             return PostLLSDAsync(capabilityUrl, payload, format: null, cancellationToken: cancellationToken);
+        }
+
+        public Task<LLSDValue> PostLLSDAsync(
+            string capabilityUrl,
+            LLSDValue payload,
+            LLSDFormat? format,
+            CancellationToken cancellationToken)
+        {
+            return PostLLSDAsync(capabilityUrl, payload, format, maxRetries: null, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -64,6 +83,7 @@ namespace Linkpoint.LLSD.Network
             string capabilityUrl,
             LLSDValue payload,
             LLSDFormat? format = null,
+            int? maxRetries = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(capabilityUrl))
@@ -72,7 +92,7 @@ namespace Linkpoint.LLSD.Network
             }
 
             LLSDFormat effectiveFormat = format ?? Options.DefaultFormat;
-            int maxRetries = Math.Max(0, Options.MaxRetryCount);
+            int retryLimit = Math.Max(0, maxRetries ?? Options.MaxRetryCount);
             int attempt = 0;
 
             while (true)
@@ -99,6 +119,23 @@ namespace Linkpoint.LLSD.Network
                         try
                         {
                             byte[] responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                            string? contentType = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
+
+                            if (contentType == "application/llsd+binary")
+                            {
+                                return LLSDSerialize.FromBinary(responseBytes);
+                            }
+                            if (contentType == "application/llsd+notation" || contentType == "text/plain")
+                            {
+                                string text = Encoding.UTF8.GetString(responseBytes);
+                                return LLSDSerialize.FromNotation(text);
+                            }
+                            if (contentType == "application/llsd+xml" || contentType == "text/xml" || contentType == "application/xml")
+                            {
+                                string text = Encoding.UTF8.GetString(responseBytes);
+                                return LLSDSerialize.FromXML(text);
+                            }
+
                             return LLSDSerialize.Parse(responseBytes);
                         }
                         finally
@@ -110,7 +147,7 @@ namespace Linkpoint.LLSD.Network
                     int statusCode = (int)response.StatusCode;
                     bool isTransient = IsTransientStatusCode(statusCode);
 
-                    if (!isTransient || attempt >= maxRetries)
+                    if (!isTransient || attempt >= retryLimit)
                     {
                         try
                         {
@@ -126,7 +163,7 @@ namespace Linkpoint.LLSD.Network
                 }
                 else if (caughtException != null)
                 {
-                    if (attempt >= maxRetries)
+                    if (attempt >= retryLimit)
                     {
                         throw caughtException;
                     }
@@ -139,48 +176,69 @@ namespace Linkpoint.LLSD.Network
         }
 
         /// <summary>
-        /// Polls EventQueueGet capability and parses array of events.
+        /// Polls EventQueueGet capability and parses array of events, extracting sequence ID token.
         /// </summary>
-        public Task<List<EventQueueEvent>> PollEventQueueAsync(string eventQueueUrl, int ack, CancellationToken cancellationToken)
+        public Task<EventQueuePollResult> PollEventQueueAsync(string eventQueueUrl, int? ack, CancellationToken cancellationToken)
         {
             return PollEventQueueAsync(eventQueueUrl, ack, format: null, cancellationToken: cancellationToken);
         }
 
         /// <summary>
+        /// Polls EventQueueGet capability and parses array of events, extracting sequence ID token.
+        /// </summary>
+        public Task<EventQueuePollResult> PollEventQueueAsync(string eventQueueUrl, CancellationToken cancellationToken)
+        {
+            return PollEventQueueAsync(eventQueueUrl, ack: null, format: null, cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
         /// Polls EventQueueGet capability and parses array of events using specified LLSD format.
         /// </summary>
-        public async Task<List<EventQueueEvent>> PollEventQueueAsync(
+        public async Task<EventQueuePollResult> PollEventQueueAsync(
             string eventQueueUrl,
-            int ack = 0,
+            int? ack = null,
             LLSDFormat? format = null,
             CancellationToken cancellationToken = default)
         {
             var reqMap = new Dictionary<string, LLSDValue>
             {
-                ["ack"] = LLSDValue.FromInteger(ack),
                 ["done"] = LLSDValue.FromBoolean(false)
             };
 
-            LLSDValue responseLlsd = await PostLLSDAsync(eventQueueUrl, LLSDValue.FromMap(reqMap), format, cancellationToken).ConfigureAwait(false);
-
-            var events = new List<EventQueueEvent>();
-            if (responseLlsd.IsMap && responseLlsd.Has("events"))
+            if (ack.HasValue)
             {
-                LLSDValue eventsArray = responseLlsd["events"];
-                foreach (LLSDValue evtItem in eventsArray.AsArray())
+                reqMap["ack"] = LLSDValue.FromInteger(ack.Value);
+            }
+
+            LLSDValue responseLlsd = await PostLLSDAsync(eventQueueUrl, LLSDValue.FromMap(reqMap), format, maxRetries: 0, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var result = new EventQueuePollResult();
+
+            if (responseLlsd.IsMap)
+            {
+                if (responseLlsd.Has("id"))
                 {
-                    if (evtItem.IsMap)
+                    result.Id = (int)responseLlsd["id"].AsInteger();
+                }
+
+                if (responseLlsd.Has("events"))
+                {
+                    LLSDValue eventsArray = responseLlsd["events"];
+                    foreach (LLSDValue evtItem in eventsArray.AsArray())
                     {
-                        events.Add(new EventQueueEvent
+                        if (evtItem.IsMap)
                         {
-                            EventName = evtItem["message"].AsString(),
-                            Body = evtItem["body"]
-                        });
+                            result.Events.Add(new EventQueueEvent
+                            {
+                                EventName = evtItem["message"].AsString(),
+                                Body = evtItem["body"]
+                            });
+                        }
                     }
                 }
             }
 
-            return events;
+            return result;
         }
 
         public static HttpContent CreateHttpContent(LLSDValue payload, LLSDFormat format)

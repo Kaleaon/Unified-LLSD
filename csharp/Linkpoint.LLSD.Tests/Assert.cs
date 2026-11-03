@@ -24,6 +24,41 @@ namespace Linkpoint.LLSD.Tests
             }
         }
 
+        public static void NotNull(object? obj, string? message = null)
+        {
+            if (obj == null)
+            {
+                throw new Exception($"Assert.NotNull failed. {message}");
+            }
+        }
+
+        public static void Single<T>(IEnumerable<T> collection)
+        {
+            int count = collection.Count();
+            if (count != 1)
+            {
+                throw new Exception($"Assert.Single failed. Collection count was {count}.");
+            }
+        }
+
+        public static async Task<TException> ThrowsAsync<TException>(Func<Task> action) where TException : Exception
+        {
+            try
+            {
+                await action();
+            }
+            catch (TException ex)
+            {
+                return ex;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Assert.ThrowsAsync failed. Expected {typeof(TException).Name} but caught {ex.GetType().Name}.");
+            }
+
+            throw new Exception($"Assert.ThrowsAsync failed. Expected {typeof(TException).Name} but no exception was thrown.");
+        }
+
         public static void Equal<T>(T expected, T actual, string? message = null)
         {
             if (expected is byte[] expBytes && actual is byte[] actBytes)
@@ -59,6 +94,14 @@ namespace Linkpoint.LLSD.Tests
             }
         }
 
+        public static void Contains(string substring, string target)
+        {
+            if (target == null || !target.Contains(substring))
+            {
+                throw new Exception($"Assert.Contains failed. Substring '{substring}' not found in '{target}'.");
+            }
+        }
+
         public static void Empty<T>(IEnumerable<T> collection)
         {
             if (collection.Any())
@@ -82,23 +125,6 @@ namespace Linkpoint.LLSD.Tests
                 throw new Exception($"Assert.Throws failed. Expected {typeof(T).Name}, but got {ex.GetType().Name}: {ex.Message}");
             }
             throw new Exception($"Assert.Throws failed. Expected {typeof(T).Name}, but no exception was thrown.");
-        }
-
-        public static async Task<T> ThrowsAsync<T>(Func<Task> action) where T : Exception
-        {
-            try
-            {
-                await action();
-            }
-            catch (T ex)
-            {
-                return ex;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Assert.ThrowsAsync failed. Expected {typeof(T).Name}, but got {ex.GetType().Name}: {ex.Message}");
-            }
-            throw new Exception($"Assert.ThrowsAsync failed. Expected {typeof(T).Name}, but no exception was thrown.");
         }
     }
 }
