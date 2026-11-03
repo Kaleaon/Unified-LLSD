@@ -58,19 +58,59 @@ export class CapabilityClient {
     const result: EventQueuePollResult = { events: [] };
 
     if (responseLlsd && typeof responseLlsd === 'object') {
-      if (typeof responseLlsd.id === 'number') {
-        result.id = responseLlsd.id;
-        result.nextAck = responseLlsd.id;
+      let idVal: any = undefined;
+      let rawEvents: any[] = [];
+
+      if (typeof (responseLlsd as any).get === 'function') {
+        const idNode = (responseLlsd as any).get('id');
+        if (idNode && idNode.isDefined) {
+          idVal = idNode.asInteger();
+        }
+        const eventsNode = (responseLlsd as any).get('events');
+        if (eventsNode && eventsNode.isDefined) {
+          rawEvents = eventsNode.asArray();
+        }
       }
 
-      if (Array.isArray(responseLlsd.events)) {
-        for (const item of responseLlsd.events) {
-          if (item && typeof item === 'object') {
-            result.events.push({
-              message: item.message || '',
-              body: item.body
-            });
+      if (idVal === undefined && typeof responseLlsd.id === 'number') {
+        idVal = responseLlsd.id;
+      }
+      if (rawEvents.length === 0 && Array.isArray(responseLlsd.events)) {
+        rawEvents = responseLlsd.events;
+      }
+
+      if (typeof idVal === 'number' && !isNaN(idVal)) {
+        result.id = idVal;
+        result.nextAck = idVal;
+      }
+
+      for (const item of rawEvents) {
+        if (item && typeof item.get === 'function') {
+          const msgNode = item.get('message');
+          const bodyNode = item.get('body');
+          let bodyVal: any = undefined;
+          if (bodyNode && bodyNode.isDefined) {
+            if (bodyNode.type === 'string') {
+              bodyVal = bodyNode.asString();
+            } else if (bodyNode.type === 'integer') {
+              bodyVal = bodyNode.asInteger();
+            } else if (bodyNode.type === 'real') {
+              bodyVal = bodyNode.asReal();
+            } else if (bodyNode.type === 'boolean') {
+              bodyVal = bodyNode.asBoolean();
+            } else {
+              bodyVal = bodyNode.asString();
+            }
           }
+          result.events.push({
+            message: msgNode ? msgNode.asString() : '',
+            body: bodyVal
+          });
+        } else if (item && typeof item === 'object') {
+          result.events.push({
+            message: item.message || '',
+            body: item.body
+          });
         }
       }
     }
