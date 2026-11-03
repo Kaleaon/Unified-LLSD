@@ -6,6 +6,7 @@ import {
     DetailLevel,
     AssetSchemaConstants,
     TextureTransformAdapter,
+    GLTFMaterialAdapter,
     LLSDValue,
     LLSDType,
     LLUUID,
@@ -42,6 +43,34 @@ test('TextureTransformAdapter Float32Array packing', () => {
     assert.equal(packed[7], 0.0);
 
     const tight = transform.getPackedTight();
+    assert.equal(tight.length, 5);
+    assert.equal(tight[0], 2.0);
+    assert.equal(tight[1], 3.0);
+    assert.ok(Math.abs(tight[2] - 1.5707963) < 0.0001);
+    assert.equal(tight[3], 0.5);
+    assert.equal(tight[4], 0.25);
+});
+
+test('GLTFMaterialAdapter Float32Array packing', () => {
+    const mat = new GLTFMaterialAdapter(
+        AlphaMode.OPAQUE,
+        0.5,
+        false,
+        [new TextureTransformAdapter(2.0, 3.0, 1.5707963, 0.5, 0.25)]
+    );
+
+    const packed = mat.getPacked(0);
+    assert.equal(packed.length, 8);
+    assert.equal(packed[0], 2.0);
+    assert.equal(packed[1], 3.0);
+    assert.ok(Math.abs(packed[2] - 1.5707963) < 0.0001);
+    assert.equal(packed[3], 0.0);
+    assert.equal(packed[4], 0.5);
+    assert.equal(packed[5], 0.25);
+    assert.equal(packed[6], 0.0);
+    assert.equal(packed[7], 0.0);
+
+    const tight = mat.getPackedTight(0);
     assert.equal(tight.length, 5);
     assert.equal(tight[0], 2.0);
     assert.equal(tight[1], 3.0);
