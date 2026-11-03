@@ -76,8 +76,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-          cache: true
-          cache-dependency-path: "csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj"
       - name: Build C# SDK Package
         run: dotnet build csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj -c Release
       - name: Run C# SDK Tests
