@@ -74,42 +74,52 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and Run C++ SDK Tests
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
+      - name: Build C++ SDK
         run: |
           cd cpp
           cmake -B build
           cmake --build build
+      - name: Run C++ SDK Tests
+        run: |
+          cd cpp
           ./build/test_llsd
 
   rust-sdk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Rust
+      - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Run Rust SDK Tests
-        run: cargo test
-        working-directory: rust
+        run: |
+          cd rust
+          cargo test
 
   dart-sdk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Dart
+      - name: Setup Dart SDK
         uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
       - name: Run Dart SDK Tests
-        run: dart test
-        working-directory: dart
+        run: |
+          cd dart
+          dart test
 
   swift-sdk:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Swift
-        uses: swift-actions/setup-swift@v2
       - name: Run Swift SDK Tests
-        run: swift test
-        working-directory: swift
+        run: |
+          cd swift
+          swift test
 
   typescript-sdk:
     runs-on: ubuntu-latest
