@@ -1,24 +1,20 @@
 plugins {
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.1.0" apply false
     `maven-publish`
 }
 
-group = "org.llsd"
-version = "1.0.0"
-
-dependencies {
-    implementation(kotlin("stdlib"))
-    testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
+allprojects {
+    group = "com.unifiedllsd"
+    version = "1.0.0"
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+subprojects {
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "java")
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+    configure<JavaPluginExtension> {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
     }
 }

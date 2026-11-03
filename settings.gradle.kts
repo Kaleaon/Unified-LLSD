@@ -13,3 +13,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "unified-llsd"
+include("unified-llsd-core", "unified-llsd-network")
