@@ -173,7 +173,6 @@ public class TextureTransformAdapter {
     os.makedirs(cs_dir1, exist_ok=True)
     with open(os.path.join(cs_dir1, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-
     cs_dir2 = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
     os.makedirs(cs_dir2, exist_ok=True)
     with open(os.path.join(cs_dir2, "AssetSchemaAdapter.cs"), "w") as f:
