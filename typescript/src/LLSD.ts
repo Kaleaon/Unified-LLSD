@@ -202,6 +202,23 @@ export class LLSDValue {
         return new LLSDValue(LLSDType.MAP, mapObj);
     }
 
+    public static fromJSObject(obj: any): LLSDValue {
+        if (obj === null || obj === undefined) return LLSDValue.undefined();
+        if (obj instanceof LLSDValue) return obj;
+        if (typeof obj === 'boolean') return LLSDValue.boolean(obj);
+        if (typeof obj === 'number') return Number.isInteger(obj) ? LLSDValue.integer(obj) : LLSDValue.real(obj);
+        if (typeof obj === 'string') return LLSDValue.string(obj);
+        if (Array.isArray(obj)) return LLSDValue.array(obj.map(item => LLSDValue.fromJSObject(item)));
+        if (typeof obj === 'object') {
+            const mapObj = new Map<string, LLSDValue>();
+            for (const [k, v] of Object.entries(obj)) {
+                mapObj.set(k, LLSDValue.fromJSObject(v));
+            }
+            return new LLSDValue(LLSDType.MAP, mapObj);
+        }
+        return LLSDValue.undefined();
+    }
+
     public static array(items?: LLSDValue[]): LLSDValue {
         return new LLSDValue(LLSDType.ARRAY, items ? [...items] : []);
     }
@@ -392,6 +409,9 @@ export class LLSD extends LLSDValue {
             super(LLSDType.MAP, val);
         } else if (Array.isArray(val)) {
             super(LLSDType.ARRAY, val);
+        } else if (typeof val === 'object') {
+            const llsdObj = LLSDValue.fromJSObject(val);
+            super(llsdObj.type, (llsdObj as any).raw);
         } else {
             super(LLSDType.UNDEFINED, null);
         }
@@ -408,3 +428,4 @@ export class LLSD extends LLSDValue {
 
 export type LLSDMap = { [key: string]: any };
 export type LLSDArray = any[];
+export { LLSDDate as LLDate, LLSDURI as LLURI, LLSDBinary as LLBinary };

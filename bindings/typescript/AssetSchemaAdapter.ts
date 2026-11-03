@@ -16,7 +16,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {
@@ -64,7 +64,18 @@ export class TextureTransformAdapter {
     }
 }
 
-export class Vector2 {
+export interface Vector2Like {
+    x: number;
+    y: number;
+}
+
+export interface Vector3Like {
+    x: number;
+    y: number;
+    z: number;
+}
+
+export class Vector2 implements Vector2Like {
     public x: number;
     public y: number;
 
@@ -78,7 +89,7 @@ export class Vector2 {
     }
 }
 
-export class Vector3 {
+export class Vector3 implements Vector3Like {
     public x: number;
     public y: number;
     public z: number;
@@ -143,18 +154,24 @@ export class GLTFMaterialAdapter {
 export class MeshBlockAdapter {
     public lod: DetailLevel;
     public lodKey: string;
-    public positions: Vector3[];
-    public normals: Vector3[];
-    public texCoords: Vector2[];
+    public positions: (Vector3 | Vector3Like)[] | Float32Array;
+    public normals: (Vector3 | Vector3Like)[] | Float32Array;
+    public texCoords: (Vector2 | Vector2Like)[] | Float32Array;
     public jointInfluences: JointInfluence[];
+    public positionsFlat?: Float32Array;
+    public normalsFlat?: Float32Array;
+    public texCoordsFlat?: Float32Array;
 
     constructor(
         lod: DetailLevel = DetailLevel.HIGHEST,
-        positions: Vector3[] = [],
-        normals: Vector3[] = [],
-        texCoords: Vector2[] = [],
+        positions: (Vector3 | Vector3Like)[] | Float32Array = [],
+        normals: (Vector3 | Vector3Like)[] | Float32Array = [],
+        texCoords: (Vector2 | Vector2Like)[] | Float32Array = [],
         jointInfluences: JointInfluence[] = [],
-        lodKey?: string
+        lodKey?: string,
+        positionsFlat?: Float32Array,
+        normalsFlat?: Float32Array,
+        texCoordsFlat?: Float32Array
     ) {
         this.lod = lod;
         this.lodKey = lodKey ?? AssetSchemaConstants.getLodKey(lod);
@@ -162,23 +179,41 @@ export class MeshBlockAdapter {
         this.normals = normals;
         this.texCoords = texCoords;
         this.jointInfluences = jointInfluences;
+        this.positionsFlat = positionsFlat;
+        this.normalsFlat = normalsFlat;
+        this.texCoordsFlat = texCoordsFlat;
     }
 
     public getPackedPositions(): Float32Array {
+        if (this.positionsFlat) return this.positionsFlat;
+        if (this.positions instanceof Float32Array) return this.positions;
         const result = new Float32Array(this.positions.length * 3);
-        this.positions.forEach((p, i) => result.set(p.getPacked(), i * 3));
+        this.positions.forEach((p, i) => {
+            const packed = (typeof (p as any).getPacked === 'function') ? (p as Vector3).getPacked() : [p.x, p.y, p.z];
+            result.set(packed, i * 3);
+        });
         return result;
     }
 
     public getPackedNormals(): Float32Array {
+        if (this.normalsFlat) return this.normalsFlat;
+        if (this.normals instanceof Float32Array) return this.normals;
         const result = new Float32Array(this.normals.length * 3);
-        this.normals.forEach((n, i) => result.set(n.getPacked(), i * 3));
+        this.normals.forEach((n, i) => {
+            const packed = (typeof (n as any).getPacked === 'function') ? (n as Vector3).getPacked() : [n.x, n.y, n.z];
+            result.set(packed, i * 3);
+        });
         return result;
     }
 
     public getPackedTexCoords(): Float32Array {
+        if (this.texCoordsFlat) return this.texCoordsFlat;
+        if (this.texCoords instanceof Float32Array) return this.texCoords;
         const result = new Float32Array(this.texCoords.length * 2);
-        this.texCoords.forEach((t, i) => result.set(t.getPacked(), i * 2));
+        this.texCoords.forEach((t, i) => {
+            const packed = (typeof (t as any).getPacked === 'function') ? (t as Vector2).getPacked() : [t.x, t.y];
+            result.set(packed, i * 2);
+        });
         return result;
     }
 }

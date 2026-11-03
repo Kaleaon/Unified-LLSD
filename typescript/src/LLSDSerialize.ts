@@ -581,8 +581,13 @@ export class LLSDSerialize {
             case LLSDType.MAP: {
                 const lines: string[] = [`${ind}<map>`];
                 val.asMap.forEach((v, k) => {
-                    lines.push(`${ind}  <key>${LLSDSerialize.xmlEscape(k)}</key>`);
-                    lines.push(LLSDSerialize.encodeXMLValue(v, indentLevel + 2));
+                    if (v.type === LLSDType.MAP || v.type === LLSDType.ARRAY) {
+                        lines.push(`${ind}  <key>${LLSDSerialize.xmlEscape(k)}</key>`);
+                        lines.push(LLSDSerialize.encodeXMLValue(v, indentLevel + 2));
+                    } else {
+                        const valXml = LLSDSerialize.encodeXMLValue(v, 0).trim();
+                        lines.push(`${ind}  <key>${LLSDSerialize.xmlEscape(k)}</key>${valXml}`);
+                    }
                 });
                 lines.push(`${ind}</map>`);
                 return lines.join('\n');

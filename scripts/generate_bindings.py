@@ -17,6 +17,7 @@ def generate_cpp():
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -29,7 +30,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {
@@ -62,6 +63,14 @@ struct TextureTransformAdapter {
     }
 };
 
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
+};
+
 } // namespace UnifiedLLSD
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
@@ -85,7 +94,7 @@ enum class DetailLevel(val code: Int) {
 
 object AssetSchemaConstants {
     const val MAX_RIGGED_MESH_JOINTS: Int = 256
-    const val JOINT_SENTINEL: Int = 0xFF
+    const val JOINT_SENTINEL: Int = 0xFFFF
 
     fun getLodKey(lod: DetailLevel): String = when (lod) {
         DetailLevel.HIGHEST, DetailLevel.HIGH -> "high_lod"
@@ -110,6 +119,14 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+class MeshBlockAdapter(
+    var lod: DetailLevel = DetailLevel.HIGHEST,
+    var lodKey: String = "",
+    var positionsFlat: FloatArray = floatArrayOf(),
+    var normalsFlat: FloatArray = floatArrayOf(),
+    var texCoordsFlat: FloatArray = floatArrayOf()
+)
 """
     kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
     os.makedirs(kt_dir, exist_ok=True)
@@ -134,7 +151,7 @@ namespace Linkpoint.LLSD.Schema
     public static class AssetSchemaConstants
     {
         public const int MAX_RIGGED_MESH_JOINTS = 256;
-        public const byte JOINT_SENTINEL = 0xFF;
+        public const ushort JOINT_SENTINEL = 0xFFFF;
 
         public static string GetLodKey(DetailLevel lod)
         {
@@ -172,6 +189,15 @@ namespace Linkpoint.LLSD.Schema
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }
 """
     cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
@@ -189,7 +215,7 @@ package com.unifiedllsd.schema;
 
 public class AssetSchemaAdapter {
     public static final int MAX_RIGGED_MESH_JOINTS = 256;
-    public static final int JOINT_SENTINEL = 0xFF;
+    public static final int JOINT_SENTINEL = 0xFFFF;
 
     public enum DetailLevel {
         HIGHEST,
@@ -229,6 +255,14 @@ public class AssetSchemaAdapter {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
     }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
+    }
 }
 """
     java_dir = os.path.join(REPO_ROOT, "bindings", "java")
@@ -255,7 +289,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {
@@ -303,7 +337,18 @@ export class TextureTransformAdapter {
     }
 }
 
-export class Vector2 {
+export interface Vector2Like {
+    x: number;
+    y: number;
+}
+
+export interface Vector3Like {
+    x: number;
+    y: number;
+    z: number;
+}
+
+export class Vector2 implements Vector2Like {
     public x: number;
     public y: number;
 
@@ -317,7 +362,7 @@ export class Vector2 {
     }
 }
 
-export class Vector3 {
+export class Vector3 implements Vector3Like {
     public x: number;
     public y: number;
     public z: number;
@@ -382,18 +427,24 @@ export class GLTFMaterialAdapter {
 export class MeshBlockAdapter {
     public lod: DetailLevel;
     public lodKey: string;
-    public positions: Vector3[];
-    public normals: Vector3[];
-    public texCoords: Vector2[];
+    public positions: (Vector3 | Vector3Like)[] | Float32Array;
+    public normals: (Vector3 | Vector3Like)[] | Float32Array;
+    public texCoords: (Vector2 | Vector2Like)[] | Float32Array;
     public jointInfluences: JointInfluence[];
+    public positionsFlat?: Float32Array;
+    public normalsFlat?: Float32Array;
+    public texCoordsFlat?: Float32Array;
 
     constructor(
         lod: DetailLevel = DetailLevel.HIGHEST,
-        positions: Vector3[] = [],
-        normals: Vector3[] = [],
-        texCoords: Vector2[] = [],
+        positions: (Vector3 | Vector3Like)[] | Float32Array = [],
+        normals: (Vector3 | Vector3Like)[] | Float32Array = [],
+        texCoords: (Vector2 | Vector2Like)[] | Float32Array = [],
         jointInfluences: JointInfluence[] = [],
-        lodKey?: string
+        lodKey?: string,
+        positionsFlat?: Float32Array,
+        normalsFlat?: Float32Array,
+        texCoordsFlat?: Float32Array
     ) {
         this.lod = lod;
         this.lodKey = lodKey ?? AssetSchemaConstants.getLodKey(lod);
@@ -401,23 +452,41 @@ export class MeshBlockAdapter {
         this.normals = normals;
         this.texCoords = texCoords;
         this.jointInfluences = jointInfluences;
+        this.positionsFlat = positionsFlat;
+        this.normalsFlat = normalsFlat;
+        this.texCoordsFlat = texCoordsFlat;
     }
 
     public getPackedPositions(): Float32Array {
+        if (this.positionsFlat) return this.positionsFlat;
+        if (this.positions instanceof Float32Array) return this.positions;
         const result = new Float32Array(this.positions.length * 3);
-        this.positions.forEach((p, i) => result.set(p.getPacked(), i * 3));
+        this.positions.forEach((p, i) => {
+            const packed = (typeof (p as any).getPacked === 'function') ? (p as Vector3).getPacked() : [p.x, p.y, p.z];
+            result.set(packed, i * 3);
+        });
         return result;
     }
 
     public getPackedNormals(): Float32Array {
+        if (this.normalsFlat) return this.normalsFlat;
+        if (this.normals instanceof Float32Array) return this.normals;
         const result = new Float32Array(this.normals.length * 3);
-        this.normals.forEach((n, i) => result.set(n.getPacked(), i * 3));
+        this.normals.forEach((n, i) => {
+            const packed = (typeof (n as any).getPacked === 'function') ? (n as Vector3).getPacked() : [n.x, n.y, n.z];
+            result.set(packed, i * 3);
+        });
         return result;
     }
 
     public getPackedTexCoords(): Float32Array {
+        if (this.texCoordsFlat) return this.texCoordsFlat;
+        if (this.texCoords instanceof Float32Array) return this.texCoords;
         const result = new Float32Array(this.texCoords.length * 2);
-        this.texCoords.forEach((t, i) => result.set(t.getPacked(), i * 2));
+        this.texCoords.forEach((t, i) => {
+            const packed = (typeof (t as any).getPacked === 'function') ? (t as Vector2).getPacked() : [t.x, t.y];
+            result.set(packed, i * 2);
+        });
         return result;
     }
 }
