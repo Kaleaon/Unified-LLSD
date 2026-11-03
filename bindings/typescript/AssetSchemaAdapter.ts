@@ -16,7 +16,7 @@ export enum DetailLevel {
 
 export namespace AssetSchemaConstants {
     export const MAX_RIGGED_MESH_JOINTS: number = 256;
-    export const JOINT_SENTINEL: number = 0xFF;
+    export const JOINT_SENTINEL: number = 0xFFFF;
 
     export function getLodKey(lod: DetailLevel): string {
         switch (lod) {
