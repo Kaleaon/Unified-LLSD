@@ -53,4 +53,13 @@ namespace Linkpoint.LLSD.Schema
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }

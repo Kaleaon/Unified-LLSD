@@ -9,10 +9,11 @@ export class LLSDSerialize {
   public static readonly xmlHeader = "<?xml version=\"1.0\" ?>\n";
 
   // --- XML ---
-  public static toXML(sd: LLSD, withDeclaration = false): string {
+  public static toXML(sd: any, withDeclaration = false): string {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
     let xml = withDeclaration ? this.xmlHeader : '';
     xml += '<llsd>';
-    xml += this.writeXmlElement(sd);
+    xml += this.writeXmlElement(llsd);
     xml += '</llsd>';
     return xml;
   }
@@ -49,25 +50,41 @@ export class LLSDSerialize {
         return b.length > 0 ? `<binary encoding="base64">${Buffer.from(b).toString('base64')}</binary>` : '<binary/>';
       }
       case LLSDType.Map: {
-        const map = sd.asMap();
-        if (map.size === 0) return '<map/>';
-        let res = '<map>';
-        map.forEach((v, k) => {
-          res += `<key>${this.xmlEscape(k)}</key>`;
-          res += this.writeXmlElement(v);
-        });
-        res += '</map>';
-        return res;
+        const val = (sd as any).value;
+        if (val instanceof Map) {
+          if (val.size === 0) return '<map/>';
+          let res = '<map>';
+          val.forEach((v: any, k: any) => {
+            res += `<key>${this.xmlEscape(String(k))}</key>`;
+            res += this.writeXmlElement(v instanceof LLSD ? v : new LLSD(v));
+          });
+          res += '</map>';
+          return res;
+        } else if (typeof val === 'object' && val !== null) {
+          const keys = Object.keys(val);
+          if (keys.length === 0) return '<map/>';
+          let res = '<map>';
+          for (const k of keys) {
+            res += `<key>${this.xmlEscape(k)}</key>`;
+            res += this.writeXmlElement(val[k] instanceof LLSD ? val[k] : new LLSD(val[k]));
+          }
+          res += '</map>';
+          return res;
+        }
+        return '<map/>';
       }
       case LLSDType.Array: {
-        const arr = sd.asArray();
-        if (arr.length === 0) return '<array/>';
-        let res = '<array>';
-        for (const item of arr) {
-          res += this.writeXmlElement(item);
+        const val = (sd as any).value;
+        if (Array.isArray(val)) {
+          if (val.length === 0) return '<array/>';
+          let res = '<array>';
+          for (const item of val) {
+            res += this.writeXmlElement(item instanceof LLSD ? item : new LLSD(item));
+          }
+          res += '</array>';
+          return res;
         }
-        res += '</array>';
-        return res;
+        return '<array/>';
       }
     }
   }
@@ -114,9 +131,10 @@ export class LLSDSerialize {
   }
 
   // --- Binary ---
-  public static toBinary(sd: LLSD): Uint8Array {
+  public static toBinary(sd: any): Uint8Array {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
     const chunks: Uint8Array[] = [];
-    this.writeBinary(chunks, sd);
+    this.writeBinary(chunks, llsd);
     let totalLen = 0;
     for (const c of chunks) totalLen += c.length;
     const res = new Uint8Array(totalLen);
@@ -156,42 +174,146 @@ export class LLSDSerialize {
         chunks.push(buf);
         break;
       }
+      case LLSDType.String: {
+        const sBytes = new TextEncoder().encode(sd.asString());
+        const buf = new Uint8Array(5 + sBytes.length);
+        buf[0] = 115; // 's'
+        new DataView(buf.buffer, 1, 4).setInt32(0, sBytes.length, false);
+        buf.set(sBytes, 5);
+        chunks.push(buf);
+        break;
+      }
+      case LLSDType.Array: {
+        chunks.push(new Uint8Array([91])); // '['
+        const val = (sd as any).value;
+        const arr = Array.isArray(val) ? val : [];
+        const countBuf = new Uint8Array(4);
+        new DataView(countBuf.buffer).setInt32(0, arr.length, false);
+        chunks.push(countBuf);
+        for (const item of arr) {
+          this.writeBinary(chunks, item instanceof LLSD ? item : new LLSD(item));
+        }
+        chunks.push(new Uint8Array([93])); // ']'
+        break;
+      }
+      case LLSDType.Map: {
+        chunks.push(new Uint8Array([123])); // '{'
+        const val = (sd as any).value;
+        const keys = typeof val === 'object' && val !== null ? Object.keys(val) : [];
+        const countBuf = new Uint8Array(4);
+        new DataView(countBuf.buffer).setInt32(0, keys.length, false);
+        chunks.push(countBuf);
+        for (const k of keys) {
+          const kBytes = new TextEncoder().encode(k);
+          const kLenBuf = new Uint8Array(4);
+          new DataView(kLenBuf.buffer).setInt32(0, kBytes.length, false);
+          chunks.push(new Uint8Array([107]), kLenBuf, kBytes); // 'k'
+          this.writeBinary(chunks, val[k] instanceof LLSD ? val[k] : new LLSD(val[k]));
+        }
+        chunks.push(new Uint8Array([125])); // '}'
+        break;
+      }
       default: chunks.push(new Uint8Array([33])); break;
     }
   }
 
-  public static fromBinary(bytes: Uint8Array): LLSD {
+  public static fromBinary(bytes: Uint8Array): any {
     if (bytes.length === 0) return LLSD.undefined;
-    const tag = bytes[0];
+    let offset = 0;
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (tag === 33) return LLSD.undefined;
-    if (tag === 49) return new LLSD(true);
-    if (tag === 48) return new LLSD(false);
-    if (tag === 105) return new LLSD(BigInt(dv.getInt32(1, false)));
-    if (tag === 114) return new LLSD(dv.getFloat64(1, false));
-    if (tag === 100) return new LLSD(new LLDate(dv.getFloat64(1, true))); // Date is LE!
-    return LLSD.undefined;
+
+    function readNext(): any {
+      if (offset >= bytes.length) return LLSD.undefined;
+      const tag = bytes[offset++];
+      if (tag === 33) return LLSD.undefined;
+      if (tag === 49) return new LLSD(true);
+      if (tag === 48) return new LLSD(false);
+      if (tag === 105) {
+        const val = dv.getInt32(offset, false);
+        offset += 4;
+        return new LLSD(BigInt(val));
+      }
+      if (tag === 114) {
+        const val = dv.getFloat64(offset, false);
+        offset += 8;
+        return new LLSD(val);
+      }
+      if (tag === 100) {
+        const val = dv.getFloat64(offset, true);
+        offset += 8;
+        return new LLSD(new LLDate(val));
+      }
+      if (tag === 115) { // 's' string
+        const len = dv.getInt32(offset, false);
+        offset += 4;
+        const str = new TextDecoder('utf-8').decode(bytes.subarray(offset, offset + len));
+        offset += len;
+        return str;
+      }
+      if (tag === 123) { // '{' map
+        const count = dv.getInt32(offset, false);
+        offset += 4;
+        const mapObj: any = {};
+        for (let i = 0; i < count; i++) {
+          const kTag = bytes[offset++]; // 'k'
+          const kLen = dv.getInt32(offset, false);
+          offset += 4;
+          const key = new TextDecoder('utf-8').decode(bytes.subarray(offset, offset + kLen));
+          offset += kLen;
+          const val = readNext();
+          mapObj[key] = val instanceof LLSD ? (val.asBigInt ? Number(val.asBigInt()) : val.asString ? val.asString() : val) : val;
+        }
+        if (bytes[offset] === 125) offset++; // '}'
+        return mapObj;
+      }
+      if (tag === 91) { // '[' array
+        const count = dv.getInt32(offset, false);
+        offset += 4;
+        const arr: any[] = [];
+        for (let i = 0; i < count; i++) {
+          arr.push(readNext());
+        }
+        if (bytes[offset] === 93) offset++; // ']'
+        return arr;
+      }
+      return LLSD.undefined;
+    }
+
+    return readNext();
   }
 
   // --- Notation ---
-  public static toNotation(sd: LLSD): string {
-    switch (sd.type) {
+  public static toNotation(sd: any): string {
+    const llsd = sd instanceof LLSD ? sd : new LLSD(sd);
+    switch (llsd.type) {
       case LLSDType.Undefined: return '!';
-      case LLSDType.Boolean: return sd.asBoolean() ? 'true' : 'false';
-      case LLSDType.Integer: return `i${sd.asBigInt()}`;
-      case LLSDType.Real: return `r${sd.asReal()}`;
-      case LLSDType.String: return `'${sd.asString()}'`;
+      case LLSDType.Boolean: return llsd.asBoolean() ? 'true' : 'false';
+      case LLSDType.Integer: return `i${llsd.asBigInt()}`;
+      case LLSDType.Real: return `r${llsd.asReal()}`;
+      case LLSDType.String: return `'${llsd.asString()}'`;
       default: return '!';
     }
   }
 
-  public static fromNotation(text: string): LLSD {
+  public static fromNotation(text: string): any {
     const clean = text.trim();
     if (clean === '!') return LLSD.undefined;
     if (clean.startsWith('i')) return new LLSD(BigInt(clean.substring(1)));
     if (clean.startsWith('r')) return new LLSD(parseFloat(clean.substring(1)));
     if (clean.startsWith("'") && clean.endsWith("'")) return new LLSD(clean.substring(1, clean.length - 1));
     return LLSD.undefined;
+  }
+
+  public static parse(data: string | Uint8Array): any {
+    if (typeof data === 'string') {
+      const trimmed = data.trim();
+      if (trimmed.startsWith('<?xml') || trimmed.startsWith('<llsd>')) {
+        return this.fromXML(trimmed);
+      }
+      return this.fromNotation(trimmed);
+    } else {
+      return this.fromBinary(data);
+    }
   }
 }
 

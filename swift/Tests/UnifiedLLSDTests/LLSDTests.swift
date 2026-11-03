@@ -101,4 +101,12 @@ final class LLSDTests: XCTestCase {
         XCTAssertEqual(back["arr"][1].asString(), "two")
         XCTAssertEqual(back["arr"][2].asBoolean(), false)
     }
+
+    static var allTests = [
+        ("test64BitIntegerHandling", test64BitIntegerHandling),
+        ("testBinaryDateLittleEndian", testBinaryDateLittleEndian),
+        ("testNotationRoundtrip", testNotationRoundtrip),
+        ("testXMLScalarAndSpecialValues", testXMLScalarAndSpecialValues),
+        ("testXMLNestedContainersRoundtrip", testXMLNestedContainersRoundtrip),
+    ]
 }
