@@ -7,6 +7,7 @@ obj/
 *.user
 *.suo
 /.kotlin/
+.dart_tool/
 node_modules/
 dist/
 # Build artifacts

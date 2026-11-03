@@ -34,60 +34,124 @@ class LLSDSerialize {
         break;
       case LLSDType.real:
         final r = sd.asReal();
-        if (r.isNaN) sb.write('<real>nan</real>');
-        else if (r.isInfinite) sb.write('<real>${r > 0 ? "inf" : "-inf"}</real>');
-        else sb.write('<real>$r</real>');
+        if (r.isNaN) {
+          sb.write('<real>nan</real>');
+        } else if (r.isInfinite) {
+          sb.write('<real>${r > 0 ? "inf" : "-inf"}</real>');
+        } else {
+          sb.write('<real>$r</real>');
+        }
         break;
       case LLSDType.string:
         final s = sd.asString();
-        if (s.isEmpty) sb.write('<string/>');
-        else sb.write('<string>${_xmlEscape(s)}</string>');
+        if (s.isEmpty) {
+          sb.write('<string/>');
+        } else {
+          sb.write('<string>${xmlEscape(s)}</string>');
+        }
         break;
       case LLSDType.uuid:
         final u = sd.asUUID();
-        if (u.isNull) sb.write('<uuid/>');
-        else sb.write('<uuid>$u</uuid>');
+        if (u.isNull) {
+          sb.write('<uuid/>');
+        } else {
+          sb.write('<uuid>$u</uuid>');
+        }
         break;
       case LLSDType.date:
-        sb.write('<date>${sd.asDate().toISOString()}</date>');
+        final d = sd.asDate();
+        if (d.isNull) {
+          sb.write('<date/>');
+        } else {
+          sb.write('<date>${d.toISOString()}</date>');
+        }
         break;
       case LLSDType.uri:
-        sb.write('<uri>${_xmlEscape(sd.asURI().asString())}</uri>');
+        final u = sd.asURI().asString();
+        if (u.isEmpty) {
+          sb.write('<uri/>');
+        } else {
+          sb.write('<uri>${xmlEscape(u)}</uri>');
+        }
         break;
       case LLSDType.binary:
-        sb.write('<binary encoding="base64">${base64Encode(sd.asBinary())}</binary>');
+        final b = sd.asBinary();
+        if (b.isEmpty) {
+          sb.write('<binary/>');
+        } else {
+          sb.write('<binary encoding="base64">${base64Encode(b)}</binary>');
+        }
         break;
       case LLSDType.map:
-        sb.write('<map>');
-        final map = sd as dynamic;
-        // Iterate map entries
+        final map = sd.asMap();
+        if (map.isEmpty) {
+          sb.write('<map/>');
+        } else {
+          sb.write('<map>');
+          map.forEach((k, v) {
+            sb.write('<key>${xmlEscape(k)}</key>');
+            _writeXmlElement(sb, v);
+          });
+          sb.write('</map>');
+        }
         break;
       case LLSDType.array:
-        sb.write('<array>');
+        final list = sd.asArray();
+        if (list.isEmpty) {
+          sb.write('<array/>');
+        } else {
+          sb.write('<array>');
+          for (final item in list) {
+            _writeXmlElement(sb, item);
+          }
+          sb.write('</array>');
+        }
         break;
     }
   }
 
-  static String _xmlEscape(String s) {
-    return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+  static String xmlEscape(String s) {
+    return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
+
+  static String xmlUnescape(String s) {
+    var res = s
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&#39;', "'")
+        .replaceAll('&amp;', '&');
+    if (res.contains('&#')) {
+      res = _decodeNumericEntities(res);
+    }
+    return res;
+  }
+
+  static String _decodeNumericEntities(String s) {
+    return s.replaceAllMapped(RegExp(r'&#(x[0-9a-fA-F]+|\d+);'), (match) {
+      final codeStr = match.group(1)!;
+      int? codePoint;
+      if (codeStr.startsWith('x') || codeStr.startsWith('X')) {
+        codePoint = int.tryParse(codeStr.substring(1), radix: 16);
+      } else {
+        codePoint = int.tryParse(codeStr, radix: 10);
+      }
+      if (codePoint != null && codePoint >= 0 && codePoint <= 0x10FFFF) {
+        return String.fromCharCode(codePoint);
+      }
+      return match.group(0)!;
+    });
   }
 
   static LLSD fromXML(String xml) {
-    final clean = xml.trim();
-    if (clean.isEmpty) return LLSD.undefined;
-    if (clean.contains('<integer>')) {
-      final match = RegExp(r'<integer>(-?\d+)</integer>').firstMatch(clean);
-      if (match != null) return LLSD.intVal(int.parse(match.group(1)!));
-    }
-    if (clean.contains('<string>')) {
-      final match = RegExp(r'<string>(.*?)</string>').firstMatch(clean);
-      if (match != null) return LLSD.stringVal(match.group(1)!);
-    }
-    if (clean.contains('<boolean>')) {
-      final match = RegExp(r'<boolean>(.*?)</boolean>').firstMatch(clean);
-      if (match != null) return LLSD.boolVal(match.group(1) == 'true' || match.group(1) == '1');
-    }
-    return LLSD.undefined;
+    final parser = _LLSDXMLParser(xml);
+    return parser.parse();
   }
 
   // --- Binary ---
@@ -206,5 +270,301 @@ class LLSDSerialize {
     if (clean.startsWith('r')) return LLSD.realVal(double.parse(clean.substring(1)));
     if (clean.startsWith("'") && clean.endsWith("'")) return LLSD.stringVal(clean.substring(1, clean.length - 1));
     return LLSD.undefined;
+  }
+}
+
+class _TagToken {
+  final String name;
+  final Map<String, String> attributes;
+  final bool isEnd;
+  final bool isSelfClosing;
+
+  _TagToken(this.name, this.attributes, this.isEnd, this.isSelfClosing);
+}
+
+class _LLSDXMLParser {
+  final String input;
+  int pos = 0;
+  static const int maxDepth = 256;
+
+  _LLSDXMLParser(this.input);
+
+  LLSD parse() {
+    while (pos < input.length) {
+      _skipWhitespaceAndComments();
+      if (pos >= input.length) break;
+      if (input[pos] == '<') {
+        final tag = _readTagToken();
+        if (tag != null) {
+          if (tag.isEnd) continue;
+          if (tag.name.toLowerCase() == 'llsd') {
+            if (tag.isSelfClosing) return LLSD.undefined;
+            return _parseValue(0);
+          } else {
+            return _parseElement(tag, 0);
+          }
+        }
+      } else {
+        pos++;
+      }
+    }
+    return LLSD.undefined;
+  }
+
+  LLSD _parseValue(int depth) {
+    if (depth > maxDepth) return LLSD.undefined;
+    while (pos < input.length) {
+      _skipWhitespaceAndComments();
+      if (pos >= input.length) break;
+      if (input[pos] == '<') {
+        final saved = pos;
+        final tag = _readTagToken();
+        if (tag != null) {
+          if (tag.isEnd) {
+            if (tag.name.toLowerCase() == 'llsd') return LLSD.undefined;
+            return LLSD.undefined;
+          }
+          return _parseElement(tag, depth);
+        } else {
+          pos = saved;
+          break;
+        }
+      } else {
+        pos++;
+      }
+    }
+    return LLSD.undefined;
+  }
+
+  LLSD _parseElement(_TagToken tag, int depth) {
+    if (depth > maxDepth) return LLSD.undefined;
+    final name = tag.name.toLowerCase();
+
+    if (tag.isSelfClosing) {
+      switch (name) {
+        case 'undef': return LLSD.undefined;
+        case 'boolean': return LLSD.boolVal(false);
+        case 'integer': return LLSD.intVal(0);
+        case 'real': return LLSD.realVal(0.0);
+        case 'string': return LLSD.stringVal('');
+        case 'uuid': return LLSD.uuidVal(LLUUID.nullUuid);
+        case 'date': return LLSD.dateVal(LLDate.nullDate);
+        case 'uri': return LLSD.uriVal(LLURI(''));
+        case 'binary': return LLSD.binaryVal(Uint8List(0));
+        case 'map': return LLSD.mapVal({});
+        case 'array': return LLSD.arrayVal([]);
+        default: return LLSD.undefined;
+      }
+    }
+
+    switch (name) {
+      case 'undef':
+        _readContentUntilEndTag(name);
+        return LLSD.undefined;
+      case 'boolean':
+        final raw = _readContentUntilEndTag(name).trim().toLowerCase();
+        return LLSD.boolVal(raw == 'true' || raw == '1');
+      case 'integer':
+        final raw = _readContentUntilEndTag(name).trim();
+        return LLSD.intVal(int.tryParse(raw) ?? 0);
+      case 'real':
+        final raw = _readContentUntilEndTag(name).trim().toLowerCase();
+        if (raw == 'nan') return LLSD.realVal(double.nan);
+        if (raw == 'inf' || raw == '+inf') return LLSD.realVal(double.infinity);
+        if (raw == '-inf') return LLSD.realVal(-double.infinity);
+        return LLSD.realVal(double.tryParse(raw) ?? 0.0);
+      case 'string':
+        final raw = _readContentUntilEndTag(name);
+        return LLSD.stringVal(LLSDSerialize.xmlUnescape(raw));
+      case 'uuid':
+        final raw = _readContentUntilEndTag(name).trim();
+        return LLSD.uuidVal(LLUUID.fromString(raw));
+      case 'date':
+        final raw = _readContentUntilEndTag(name).trim();
+        return LLSD.dateVal(LLDate.fromISOString(raw));
+      case 'uri':
+        final raw = _readContentUntilEndTag(name).trim();
+        return LLSD.uriVal(LLURI(LLSDSerialize.xmlUnescape(raw)));
+      case 'binary':
+        final raw = _readContentUntilEndTag(name)
+            .replaceAll('\n', '')
+            .replaceAll('\r', '')
+            .replaceAll(' ', '')
+            .replaceAll('\t', '');
+        try {
+          return LLSD.binaryVal(base64Decode(raw));
+        } catch (_) {
+          return LLSD.binaryVal(Uint8List(0));
+        }
+      case 'map':
+        final map = <String, LLSD>{};
+        while (pos < input.length) {
+          _skipWhitespaceAndComments();
+          if (pos >= input.length) break;
+          if (input[pos] == '<') {
+            final childTag = _readTagToken();
+            if (childTag != null) {
+              if (childTag.isEnd) {
+                if (childTag.name.toLowerCase() == 'map') {
+                  return LLSD.mapVal(map);
+                }
+                continue;
+              }
+              if (childTag.name.toLowerCase() == 'key') {
+                final String keyName;
+                if (childTag.isSelfClosing) {
+                  keyName = '';
+                } else {
+                  final rawKey = _readContentUntilEndTag('key');
+                  keyName = LLSDSerialize.xmlUnescape(rawKey);
+                }
+                final val = _parseValue(depth + 1);
+                map[keyName] = val;
+              }
+            }
+          } else {
+            pos++;
+          }
+        }
+        return LLSD.mapVal(map);
+      case 'array':
+        final array = <LLSD>[];
+        while (pos < input.length) {
+          _skipWhitespaceAndComments();
+          if (pos >= input.length) break;
+          if (input[pos] == '<') {
+            final childTag = _readTagToken();
+            if (childTag != null) {
+              if (childTag.isEnd) {
+                if (childTag.name.toLowerCase() == 'array') {
+                  return LLSD.arrayVal(array);
+                }
+                continue;
+              }
+              final childVal = _parseElement(childTag, depth + 1);
+              array.add(childVal);
+            }
+          } else {
+            pos++;
+          }
+        }
+        return LLSD.arrayVal(array);
+      default:
+        return LLSD.undefined;
+    }
+  }
+
+  void _skipWhitespaceAndComments() {
+    while (pos < input.length) {
+      final ch = input[pos];
+      if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+        pos++;
+        continue;
+      }
+      if (ch == '<') {
+        final rest = input.substring(pos);
+        if (rest.startsWith('<!--')) {
+          final endIdx = input.indexOf('-->', pos);
+          if (endIdx != -1) {
+            pos = endIdx + 3;
+            continue;
+          } else {
+            pos = input.length;
+            break;
+          }
+        }
+        if (rest.startsWith('<?')) {
+          final endIdx = input.indexOf('?>', pos);
+          if (endIdx != -1) {
+            pos = endIdx + 2;
+            continue;
+          } else {
+            pos = input.length;
+            break;
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  _TagToken? _readTagToken() {
+    if (pos >= input.length || input[pos] != '<') return null;
+    final closeIdx = input.indexOf('>', pos);
+    if (closeIdx == -1) return null;
+    final tagContent = input.substring(pos + 1, closeIdx).trim();
+    pos = closeIdx + 1;
+
+    if (tagContent.startsWith('/')) {
+      final name = tagContent.substring(1).trim();
+      return _TagToken(name, {}, true, false);
+    }
+
+    var isSelfClosing = false;
+    var content = tagContent;
+    if (content.endsWith('/')) {
+      isSelfClosing = true;
+      content = content.substring(0, content.length - 1).trim();
+    }
+
+    final spaceIdx = content.indexOf(RegExp(r'\s'));
+    final tagName = spaceIdx == -1 ? content : content.substring(0, spaceIdx);
+
+    final attrs = <String, String>{};
+    if (spaceIdx != -1) {
+      final attrStr = content.substring(spaceIdx).trim();
+      final attrMatches = RegExp('(\\w+)=["\']([^"\']*)["\']').allMatches(attrStr);
+      for (final m in attrMatches) {
+        attrs[m.group(1)!] = m.group(2)!;
+      }
+    }
+
+    return _TagToken(tagName, attrs, false, isSelfClosing);
+  }
+
+  String _readContentUntilEndTag(String tagName) {
+    final endTagLower = '</${tagName.toLowerCase()}>';
+    final endTagLowerSpace = '</${tagName.toLowerCase()} ';
+
+    final sb = StringBuffer();
+    while (pos < input.length) {
+      final restLower = input.substring(pos).toLowerCase();
+      if (restLower.startsWith(endTagLower) || restLower.startsWith(endTagLowerSpace)) {
+        final closeIdx = input.indexOf('>', pos);
+        if (closeIdx != -1) {
+          pos = closeIdx + 1;
+        } else {
+          pos = input.length;
+        }
+        break;
+      }
+
+      if (input.substring(pos).startsWith('<![CDATA[')) {
+        pos += 9;
+        final cdataEnd = input.indexOf(']]>', pos);
+        if (cdataEnd != -1) {
+          sb.write(input.substring(pos, cdataEnd));
+          pos = cdataEnd + 3;
+        } else {
+          sb.write(input.substring(pos));
+          pos = input.length;
+        }
+        continue;
+      }
+
+      if (input.substring(pos).startsWith('<!--')) {
+        final commentEnd = input.indexOf('-->', pos);
+        if (commentEnd != -1) {
+          pos = commentEnd + 3;
+        } else {
+          pos = input.length;
+        }
+        continue;
+      }
+
+      sb.write(input[pos]);
+      pos++;
+    }
+    return sb.toString();
   }
 }
