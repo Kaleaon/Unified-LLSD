@@ -118,3 +118,18 @@ jobs:
         run: |
           cd swift
           swift test
+
+  typescript-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: typescript
+      - name: Run TypeScript SDK Tests
+        run: npm test
+        working-directory: typescript

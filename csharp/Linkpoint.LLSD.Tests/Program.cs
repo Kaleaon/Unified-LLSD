@@ -22,7 +22,8 @@ namespace Linkpoint.LLSD.Tests
                 typeof(LLSDCodecTests),
                 typeof(LLSDConformanceTests),
                 typeof(NetworkTests),
-                typeof(CapabilityClientTests)
+                typeof(CapabilityClientTests),
+                typeof(BuildToolControllerTests)
             };
 
             foreach (var type in testClasses)
