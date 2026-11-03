@@ -11,6 +11,10 @@ class LLSDSerialize {
   static const String notationHeader = "<? llsd/notation ?>\n";
   static const String xmlHeader = "<?xml version=\"1.0\" ?>\n";
 
+  static final RegExp _xmlIntegerRegExp = RegExp(r'<integer>(-?\d+)</integer>');
+  static final RegExp _xmlStringRegExp = RegExp(r'<string>(.*?)</string>');
+  static final RegExp _xmlBooleanRegExp = RegExp(r'<boolean>(.*?)</boolean>');
+
   // --- XML ---
   static String toXML(LLSD sd, {bool withDeclaration = false}) {
     final sb = StringBuffer();
@@ -76,15 +80,15 @@ class LLSDSerialize {
     final clean = xml.trim();
     if (clean.isEmpty) return LLSD.undefined;
     if (clean.contains('<integer>')) {
-      final match = RegExp(r'<integer>(-?\d+)</integer>').firstMatch(clean);
+      final match = _xmlIntegerRegExp.firstMatch(clean);
       if (match != null) return LLSD.intVal(int.parse(match.group(1)!));
     }
     if (clean.contains('<string>')) {
-      final match = RegExp(r'<string>(.*?)</string>').firstMatch(clean);
+      final match = _xmlStringRegExp.firstMatch(clean);
       if (match != null) return LLSD.stringVal(match.group(1)!);
     }
     if (clean.contains('<boolean>')) {
-      final match = RegExp(r'<boolean>(.*?)</boolean>').firstMatch(clean);
+      final match = _xmlBooleanRegExp.firstMatch(clean);
       if (match != null) return LLSD.boolVal(match.group(1) == 'true' || match.group(1) == '1');
     }
     return LLSD.undefined;
