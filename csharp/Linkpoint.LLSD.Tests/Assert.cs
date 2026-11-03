@@ -58,7 +58,6 @@ namespace Linkpoint.LLSD.Tests
 
             throw new Exception($"Assert.ThrowsAsync failed. Expected {typeof(TException).Name} but no exception was thrown.");
         }
-
         public static void Equal<T>(T expected, T actual, string? message = null)
         {
             if (expected is byte[] expBytes && actual is byte[] actBytes)
