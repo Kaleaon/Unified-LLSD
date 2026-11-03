@@ -13,6 +13,7 @@ import {
     GLTFMaterialAdapter,
     AlphaMode
 } from './AssetSchemaAdapter.js';
+import { IAccessibleControlProps } from './ui/primitives/AccessibleControl.js';
 
 function parseDomain3(
     domain: Vector3 | number[] | number | undefined,
@@ -360,13 +361,15 @@ export class MeshAssetDecoder {
         alphaMode: AlphaMode = AlphaMode.OPAQUE,
         alphaCutoff: number = 0.5,
         doubleSided: boolean = false,
-        transforms: TextureTransformAdapter[] = []
+        transforms: TextureTransformAdapter[] = [],
+        accessibilityProps?: IAccessibleControlProps
     ): GLTFMaterialAdapter {
         return {
             alphaMode,
             alphaCutoff,
             doubleSided,
-            transforms
+            transforms,
+            ...(accessibilityProps ? { accessibilityProps } : {})
         };
     }
 
@@ -378,7 +381,8 @@ export class MeshAssetDecoder {
         positions: Vector3[] | Float32Array,
         normals: Vector3[] | Float32Array,
         texCoords: Vector2[] | Float32Array,
-        jointInfluences: JointInfluence[]
+        jointInfluences: JointInfluence[],
+        accessibilityProps?: IAccessibleControlProps
     ): MeshBlockAdapter {
         const positionsFlat = positions instanceof Float32Array ? positions : MeshAssetDecoder.vector3ArrayToFlat(positions);
         const normalsFlat = normals instanceof Float32Array ? normals : MeshAssetDecoder.vector3ArrayToFlat(normals);
@@ -393,7 +397,8 @@ export class MeshAssetDecoder {
             jointInfluences,
             positionsFlat,
             normalsFlat,
-            texCoordsFlat
+            texCoordsFlat,
+            ...(accessibilityProps ? { accessibilityProps } : {})
         };
     }
 }
