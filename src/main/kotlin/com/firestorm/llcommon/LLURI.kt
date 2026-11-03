@@ -100,12 +100,36 @@ class LLURI private constructor(
     override fun hashCode(): Int = asString().hashCode()
 
     companion object {
-        private val UNRESERVED = buildString {
-            append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-            append("0123456789")
-            append("-._~")
+        val HIERARCHICAL_SCHEMES: Set<String> = setOf("http", "https", "ftp", "hop", "secondlife", "x-grid-location-info")
+
+        private fun createAsciiMask(allowedChars: String): BooleanArray {
+            val mask = BooleanArray(128)
+            for (c in allowedChars) {
+                val code = c.code
+                if (code in 0..127) {
+                    mask[code] = true
+                }
+            }
+            return mask
         }
-        private val UNRESERVED_SORTED = UNRESERVED.toSortedSet().joinToString("")
+
+        val UNRESERVED: BooleanArray = createAsciiMask(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+        )
+        val QUERY_VALUE_ALLOWED: BooleanArray = createAsciiMask(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:@!$'()*,="
+        )
+        val QUERY_VARIABLE_ALLOWED: BooleanArray = createAsciiMask(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:@!$'()*,"
+        )
+
+        val UNRESERVED_MASK: BooleanArray get() = UNRESERVED
+        val QUERY_VALUE_ALLOWED_MASK: BooleanArray get() = QUERY_VALUE_ALLOWED
+        val QUERY_VARIABLE_ALLOWED_MASK: BooleanArray get() = QUERY_VARIABLE_ALLOWED
+
+        val HEX_TABLE: Array<String> = Array(256) { i ->
+            "%%%02X".format(i)
+        }
 
         fun fromString(s: String): LLURI {
             val colonIdx = s.indexOf(':')
@@ -126,8 +150,7 @@ class LLURI private constructor(
             var path = opaque
             var query = ""
 
-            val hierarchical = setOf("http", "https", "ftp", "hop", "secondlife", "x-grid-location-info")
-            if (scheme in hierarchical && opaque.startsWith("//")) {
+            if (scheme in HIERARCHICAL_SCHEMES && opaque.startsWith("//")) {
                 val withoutSlashes = opaque.substring(2)
                 val slashIdx = withoutSlashes.indexOf('/')
                 val queryIdx = withoutSlashes.indexOf('?')
@@ -165,20 +188,47 @@ class LLURI private constructor(
             return LLURI(scheme, opaque, authority, escapedPath, escapedQuery)
         }
 
-        fun escape(str: String): String = escapeWithAllowed(str, UNRESERVED_SORTED, sorted = true)
+        fun escape(str: String): String = escapeWithAllowed(str, UNRESERVED)
 
         fun escapeQueryValue(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,=", sorted = false)
+            escapeWithAllowed(str, QUERY_VALUE_ALLOWED)
 
         fun escapeQueryVariable(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,", sorted = false)
+            escapeWithAllowed(str, QUERY_VARIABLE_ALLOWED)
+
+        fun escapeWithAllowed(str: String, allowedMask: BooleanArray): String = buildString {
+            for (c in str) {
+                val code = c.code
+                if (code < 128 && allowedMask[code]) {
+                    append(c)
+                } else {
+                    append(encodeChar(c))
+                }
+            }
+        }
 
         fun escapeWithAllowed(str: String, allowed: String, sorted: Boolean = false): String {
-            val allowedSet = if (sorted) allowed.toSortedSet() else allowed.toSet()
+            val mask = BooleanArray(128)
+            var hasNonAscii = false
+            var nonAsciiSet: HashSet<Char>? = null
+            for (c in allowed) {
+                val code = c.code
+                if (code < 128) {
+                    mask[code] = true
+                } else {
+                    hasNonAscii = true
+                    if (nonAsciiSet == null) nonAsciiSet = HashSet()
+                    nonAsciiSet.add(c)
+                }
+            }
             return buildString {
                 for (c in str) {
-                    if (c in allowedSet) append(c)
-                    else append(encodeChar(c))
+                    val code = c.code
+                    if ((code < 128 && mask[code]) || (hasNonAscii && nonAsciiSet!!.contains(c))) {
+                        append(c)
+                    } else {
+                        append(encodeChar(c))
+                    }
                 }
             }
         }
@@ -201,8 +251,16 @@ class LLURI private constructor(
         }
 
         private fun encodeChar(c: Char): String {
+            val code = c.code
+            if (code < 128) {
+                return HEX_TABLE[code]
+            }
             val bytes = c.toString().toByteArray(Charsets.UTF_8)
-            return bytes.joinToString("") { b -> "%%%02X".format(b) }
+            return buildString(bytes.size * 3) {
+                for (b in bytes) {
+                    append(HEX_TABLE[b.toInt() and 0xFF])
+                }
+            }
         }
 
         private fun defaultPortForScheme(scheme: String): Int = when (scheme) {

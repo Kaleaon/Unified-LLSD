@@ -15,9 +15,7 @@ data class LLDate(val secondsSinceEpoch: Double = 0.0) : Comparable<LLDate> {
         val instant = Instant.ofEpochMilli((secondsSinceEpoch * 1000.0).toLong())
         val subsecMillis = ((secondsSinceEpoch * 1000.0).toLong() % 1000).toInt()
             .let { if (it < 0) it + 1000 else it }
-        val base = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            .withZone(ZoneOffset.UTC)
-            .format(instant)
+        val base = ISO_FORMATTER.format(instant)
         return if (subsecMillis > 0) {
             val centiseconds = subsecMillis / 10
             "$base.${centiseconds.toString().padStart(2, '0')}Z"
@@ -39,6 +37,12 @@ data class LLDate(val secondsSinceEpoch: Double = 0.0) : Comparable<LLDate> {
     companion object {
         val NULL: LLDate = LLDate(0.0)
 
+        val ISO_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            .withZone(ZoneOffset.UTC)
+
+        val PARSE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SS][.S]X")
+            .withZone(ZoneOffset.UTC)
+
         fun now(): LLDate {
             val epochMillis = System.currentTimeMillis()
             return LLDate(epochMillis / 1000.0)
@@ -51,9 +55,7 @@ data class LLDate(val secondsSinceEpoch: Double = 0.0) : Comparable<LLDate> {
                 else -> s
             }
             return try {
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SS][.S]X")
-                    .withZone(ZoneOffset.UTC)
-                val instant = Instant.from(formatter.parse(normalized))
+                val instant = Instant.from(PARSE_FORMATTER.parse(normalized))
                 LLDate(instant.toEpochMilli() / 1000.0)
             } catch (_: DateTimeParseException) {
                 null
