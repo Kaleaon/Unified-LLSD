@@ -24,15 +24,15 @@ echo "✓ Kotlin Native SDK passed!"
 
 echo ""
 echo "[3/7] Testing C# Native SDK..."
-cd "$ROOT_DIR"
-dotnet build csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj > /dev/null
-dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj
+cd "$ROOT_DIR/csharp"
+dotnet run --project Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 echo "✓ C# Native SDK passed!"
 
 echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""
@@ -45,7 +45,7 @@ echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
 if [ ! -d "node_modules" ]; then
-    npm install > /dev/null
+    npm install > /dev/null 2>&1
 fi
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
