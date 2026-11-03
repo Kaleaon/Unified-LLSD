@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -17,7 +18,7 @@ enum class DetailLevel : uint8_t {
 };
 
 constexpr uint32_t MAX_RIGGED_MESH_JOINTS = 256;
-constexpr uint8_t JOINT_SENTINEL = 0xFF;
+constexpr uint16_t JOINT_SENTINEL = 0xFFFF;
 
 inline const char* GetLodKey(DetailLevel lod) {
     switch (lod) {
@@ -48,6 +49,14 @@ struct TextureTransformAdapter {
     std::array<float, 5> GetPackedTight() const {
         return { scaleX, scaleY, rotation, offsetX, offsetY };
     }
+};
+
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
 };
 
 } // namespace UnifiedLLSD
