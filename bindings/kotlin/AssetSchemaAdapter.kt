@@ -31,10 +31,6 @@ class TextureTransformAdapter(
     fun getPacked(): FloatArray = floatArrayOf(
         scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f
     )
-
-    fun getPackedTight(): FloatArray = floatArrayOf(
-        scaleX, scaleY, rotation, offsetX, offsetY
-    )
 }
 
 class MeshBlockAdapter(

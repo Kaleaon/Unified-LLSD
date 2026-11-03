@@ -146,7 +146,6 @@ namespace Linkpoint.LLSD.Tests
             };
 
             float[] packed = adapter.GetPacked();
-            float[] tight = adapter.GetPackedTight();
 
             Assert.Equal(8, packed.Length);
             Assert.Equal(2.0f, packed[0]);
@@ -157,13 +156,6 @@ namespace Linkpoint.LLSD.Tests
             Assert.Equal(0.25f, packed[5]);
             Assert.Equal(0.0f, packed[6]);
             Assert.Equal(0.0f, packed[7]);
-
-            Assert.Equal(5, tight.Length);
-            Assert.Equal(2.0f, tight[0]);
-            Assert.Equal(3.0f, tight[1]);
-            Assert.Equal(1.5707963f, tight[2]);
-            Assert.Equal(0.5f, tight[3]);
-            Assert.Equal(0.25f, tight[4]);
         }
 
         [Fact]

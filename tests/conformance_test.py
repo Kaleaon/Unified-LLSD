@@ -13,13 +13,12 @@ import unittest
 class TestAssetSchemaConformance(unittest.TestCase):
 
     def test_texture_transform_packed_layout(self):
-        """Verify standard (8-float) and tight (5-float) texture transform packing layout."""
+        """Verify standard (8-float) texture transform packing layout."""
         scale_x, scale_y = 2.0, 3.0
         rotation = 1.5707963
         offset_x, offset_y = 0.5, 0.25
 
         expected_packed = [2.0, 3.0, 1.5707963, 0.0, 0.5, 0.25, 0.0, 0.0]
-        expected_packed_tight = [2.0, 3.0, 1.5707963, 0.5, 0.25]
 
         # Verify binary packing representation (IEEE 754 float little endian)
         packed_bytes = struct.pack('<8f', *expected_packed)
@@ -27,12 +26,6 @@ class TestAssetSchemaConformance(unittest.TestCase):
 
         for idx, (exp, act) in enumerate(zip(expected_packed, unpacked_floats)):
             self.assertAlmostEqual(exp, act, places=5, msg=f"Mismatch at packed float index {idx}")
-
-        tight_bytes = struct.pack('<5f', *expected_packed_tight)
-        unpacked_tight = list(struct.unpack('<5f', tight_bytes))
-
-        for idx, (exp, act) in enumerate(zip(expected_packed_tight, unpacked_tight)):
-            self.assertAlmostEqual(exp, act, places=5, msg=f"Mismatch at tight float index {idx}")
 
         # Indices 0..1 must be scale, 2 must be rotation, 4..5 must be offset in packed layout
         self.assertEqual(expected_packed[0], scale_x)

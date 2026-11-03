@@ -40,14 +40,6 @@ test('TextureTransformAdapter Float32Array packing', () => {
     assert.equal(packed[5], 0.25);
     assert.equal(packed[6], 0.0);
     assert.equal(packed[7], 0.0);
-
-    const tight = transform.getPackedTight();
-    assert.equal(tight.length, 5);
-    assert.equal(tight[0], 2.0);
-    assert.equal(tight[1], 3.0);
-    assert.ok(Math.abs(tight[2] - 1.5707963) < 0.0001);
-    assert.equal(tight[3], 0.5);
-    assert.equal(tight[4], 0.25);
 });
 
 test('LLSD Value Types and Conversions', () => {

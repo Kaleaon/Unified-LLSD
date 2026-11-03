@@ -57,10 +57,6 @@ struct TextureTransformAdapter {
     std::array<float, 8> GetPacked() const {
         return { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
     }
-
-    std::array<float, 5> GetPackedTight() const {
-        return { scaleX, scaleY, rotation, offsetX, offsetY };
-    }
 };
 
 struct MeshBlockAdapter {
@@ -113,10 +109,6 @@ class TextureTransformAdapter(
 ) {
     fun getPacked(): FloatArray = floatArrayOf(
         scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f
-    )
-
-    fun getPackedTight(): FloatArray = floatArrayOf(
-        scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
 
@@ -183,11 +175,6 @@ namespace Linkpoint.LLSD.Schema
         {
             return new float[] { ScaleX, ScaleY, Rotation, 0.0f, OffsetX, OffsetY, 0.0f, 0.0f };
         }
-
-        public float[] GetPackedTight()
-        {
-            return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
-        }
     }
 
     public class MeshBlockAdapter
@@ -249,10 +236,6 @@ public class AssetSchemaAdapter {
 
         public float[] getPacked() {
             return new float[] { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
-        }
-
-        public float[] getPackedTight() {
-            return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
     }
 
@@ -326,13 +309,6 @@ export class TextureTransformAdapter {
         return new Float32Array([
             this.scaleX, this.scaleY, this.rotation, 0.0,
             this.offsetX, this.offsetY, 0.0, 0.0
-        ]);
-    }
-
-    public getPackedTight(): Float32Array {
-        return new Float32Array([
-            this.scaleX, this.scaleY, this.rotation,
-            this.offsetX, this.offsetY
         ]);
     }
 }

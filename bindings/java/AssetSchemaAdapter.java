@@ -38,10 +38,6 @@ public class AssetSchemaAdapter {
         public float[] getPacked() {
             return new float[] { scaleX, scaleY, rotation, 0.0f, offsetX, offsetY, 0.0f, 0.0f };
         }
-
-        public float[] getPackedTight() {
-            return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
-        }
     }
 
     public static class MeshBlock {

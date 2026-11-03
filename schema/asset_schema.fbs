@@ -39,14 +39,6 @@ struct TextureTransformPacked {
   pad2: float;
 }
 
-struct TextureTransformPackedTight {
-  scale_x: float;
-  scale_y: float;
-  rotation: float;
-  offset_x: float;
-  offset_y: float;
-}
-
 table TextureTransform {
   offset: Vector2;
   scale: Vector2;
