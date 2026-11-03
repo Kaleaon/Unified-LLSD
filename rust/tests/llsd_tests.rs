@@ -21,7 +21,7 @@ fn test_xml_roundtrip() {
 
     assert_eq!(back["int"].as_i64(), 42);
     assert_eq!(back["str"].as_string(), "hello");
-    assert_eq!(back["bool"].as_bool(), true);
+    assert!(back["bool"].as_bool());
 }
 
 #[test]

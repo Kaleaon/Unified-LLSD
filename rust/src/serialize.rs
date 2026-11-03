@@ -36,7 +36,7 @@ fn write_xml_element(out: &mut String, sd: &Llsd) {
         },
         Llsd::Uuid(u) => {
             if u.is_null() { out.push_str("<uuid/>"); }
-            else { out.push_str(&format!("<uuid>{}</uuid>", u.to_string())); }
+            else { out.push_str(&format!("<uuid>{}</uuid>", u)); }
         },
         Llsd::Date(d) => out.push_str(&format!("<date>{}</date>", d.to_iso_string())),
         Llsd::Uri(u) => out.push_str(&format!("<uri>{}</uri>", xml_escape(u.as_str()))),
@@ -356,7 +356,7 @@ fn write_notation(out: &mut String, sd: &Llsd) {
             }
             out.push('\'');
         },
-        Llsd::Uuid(u) => out.push_str(&format!("u{}", u.to_string())),
+        Llsd::Uuid(u) => out.push_str(&format!("u{}", u)),
         Llsd::Date(d) => out.push_str(&format!("d\"{}\"", d.to_iso_string())),
         Llsd::Uri(u) => out.push_str(&format!("l\"{}\"", u.as_str())),
         Llsd::Binary(b) => out.push_str(&format!("b64\"{}\"", base64_encode(b))),
