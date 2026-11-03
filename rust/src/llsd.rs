@@ -210,42 +210,75 @@ pub fn base64_encode(data: &[u8]) -> String {
     result
 }
 
-pub fn base64_decode(s: &str) -> Vec<u8> {
-    let clean: String = s.chars().filter(|c| !c.is_whitespace() && *c != '=').collect();
-    let mut bytes = Vec::new();
-    let chars: Vec<char> = clean.chars().collect();
+pub const DECODE_TABLE: [i8; 256] = {
+    let mut table = [-3i8; 256];
 
-    fn val(c: char) -> u32 {
-        match c {
-            'A'..='Z' => c as u32 - 'A' as u32,
-            'a'..='z' => c as u32 - 'a' as u32 + 26,
-            '0'..='9' => c as u32 - '0' as u32 + 52,
-            '+' => 62,
-            '/' => 63,
-            _ => 0,
-        }
+    // Whitespace sentinels
+    table[b' ' as usize] = -1;
+    table[b'\t' as usize] = -1;
+    table[b'\r' as usize] = -1;
+    table[b'\n' as usize] = -1;
+
+    // Padding sentinel
+    table[b'=' as usize] = -2;
+
+    // Base64 6-bit values
+    let mut i = 0;
+    while i < 26 {
+        table[(b'A' + i) as usize] = i as i8;
+        i += 1;
     }
 
     let mut i = 0;
-    while i < chars.len() {
-        let c0 = val(chars[i]);
-        let c1 = if i + 1 < chars.len() { val(chars[i + 1]) } else { 0 };
-        let c2 = if i + 2 < chars.len() { val(chars[i + 2]) } else { 0 };
-        let c3 = if i + 3 < chars.len() { val(chars[i + 3]) } else { 0 };
-
-        let triple = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
-
-        if i + 1 < chars.len() {
-            bytes.push(((triple >> 16) & 255) as u8);
-        }
-        if i + 2 < chars.len() {
-            bytes.push(((triple >> 8) & 255) as u8);
-        }
-        if i + 3 < chars.len() {
-            bytes.push((triple & 255) as u8);
-        }
-
-        i += 4;
+    while i < 26 {
+        table[(b'a' + i) as usize] = (26 + i) as i8;
+        i += 1;
     }
+
+    let mut i = 0;
+    while i < 10 {
+        table[(b'0' + i) as usize] = (52 + i) as i8;
+        i += 1;
+    }
+
+    table[b'+' as usize] = 62;
+    table[b'/' as usize] = 63;
+
+    table
+};
+
+pub fn base64_decode(s: &str) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(s.len() * 3 / 4);
+    let mut buf: u32 = 0;
+    let mut count: usize = 0;
+
+    for &b in s.as_bytes() {
+        let val = DECODE_TABLE[b as usize];
+        if val >= 0 {
+            buf = (buf << 6) | (val as u32);
+            count += 1;
+            if count == 4 {
+                bytes.push(((buf >> 16) & 0xFF) as u8);
+                bytes.push(((buf >> 8) & 0xFF) as u8);
+                bytes.push((buf & 0xFF) as u8);
+                buf = 0;
+                count = 0;
+            }
+        }
+    }
+
+    match count {
+        3 => {
+            buf <<= 6;
+            bytes.push(((buf >> 16) & 0xFF) as u8);
+            bytes.push(((buf >> 8) & 0xFF) as u8);
+        }
+        2 => {
+            buf <<= 12;
+            bytes.push(((buf >> 16) & 0xFF) as u8);
+        }
+        _ => {}
+    }
+
     bytes
 }

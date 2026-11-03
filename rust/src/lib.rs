@@ -4,7 +4,7 @@ pub mod date;
 pub mod uri;
 pub mod serialize;
 
-pub use llsd::Llsd;
+pub use llsd::{Llsd, base64_decode, base64_encode, DECODE_TABLE};
 pub use uuid::LlUuid;
 pub use date::LlDate;
 pub use uri::LlUri;
