@@ -9,11 +9,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-data class EventQueueEvent(
-    val eventName: String,
-    val body: LLSD = LLSD.Undefined
-)
-
 class EventQueue {
     private val _events = MutableSharedFlow<EventQueueEvent>(replay = 1, extraBufferCapacity = 64)
     val events: SharedFlow<EventQueueEvent> = _events.asSharedFlow()
@@ -27,14 +22,18 @@ class EventQueue {
     }
 
     suspend fun pollOnce(capabilityClient: CapabilityClient, eventQueueUrl: String): List<EventQueueEvent> {
-        val receivedEvents = capabilityClient.pollEventQueue(eventQueueUrl, ack = currentAck)
-        if (receivedEvents.isNotEmpty()) {
-            currentAck++
-            for (event in receivedEvents) {
+        val result = capabilityClient.pollEventQueue(eventQueueUrl, ack = currentAck)
+        if (result.events.isNotEmpty()) {
+            if (result.id != null) {
+                currentAck = result.id
+            } else {
+                currentAck++
+            }
+            for (event in result.events) {
                 _events.emit(event)
             }
         }
-        return receivedEvents
+        return result.events
     }
 
     fun startPolling(

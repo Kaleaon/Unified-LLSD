@@ -17,21 +17,21 @@ echo "✓ C++ Native SDK passed!"
 
 echo ""
 echo "[2/7] Testing Kotlin Native SDK..."
-cd "$ROOT_DIR/kotlin"
-gradle test -q
+cd "$ROOT_DIR"
+./gradlew test -q
 echo "✓ Kotlin Native SDK passed!"
 
 echo ""
 echo "[3/7] Testing C# Native SDK..."
 cd "$ROOT_DIR/csharp"
-/usr/lib/dotnet/sdk/10.0.107/Roslyn/bincore/csc -target:exe -out:LLSDTests.exe *.cs -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Runtime.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Console.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.ReaderWriter.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Linq.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Collections.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Memory.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Security.Cryptography.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.ComponentModel.dll -reference:/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.26/ref/net8.0/System.Xml.XmlSerializer.dll > /dev/null
-dotnet LLSDTests.exe
+dotnet run --project Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 echo "✓ C# Native SDK passed!"
 
 echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""
@@ -43,6 +43,7 @@ echo "✓ Dart Native SDK passed!"
 echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
+npm install > /dev/null 2>&1
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
 

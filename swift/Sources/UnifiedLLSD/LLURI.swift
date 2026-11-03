@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LLURI: Equatable, Hashable, CustomStringConvertible {
+public struct LLURI: Equatable, Hashable, CustomStringConvertible, Codable {
     public var uriString: String
 
     public init(uriString: String) {
