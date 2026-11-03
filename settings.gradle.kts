@@ -13,3 +13,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "unified-llsd"
+
+include("kotlin")

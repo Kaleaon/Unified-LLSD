@@ -208,6 +208,8 @@ DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 #   * For example: A user cannot expect ${Hostname} to be expanded, as it is an environment variable and will be
 #     treated as '${Hostname}' itself on the command line.
 
+CMD_LINE_ARGS="$@"
+
 set -- \
         "-Dorg.gradle.appname=$APP_BASE_NAME" \
         -jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
@@ -245,4 +247,9 @@ eval "set -- $(
         tr '\n' ' '
     )" '"$@"'
 
-exec "$JAVACMD" "$@"
+"$JAVACMD" "$@"
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ] && command -v gradle >/dev/null 2>&1; then
+    exec gradle $CMD_LINE_ARGS
+fi
+exit $EXIT_CODE
