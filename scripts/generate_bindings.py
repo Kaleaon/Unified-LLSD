@@ -66,9 +66,9 @@ struct TextureTransformAdapter {
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 """
-    target_dir = os.path.join(REPO_ROOT, "bindings", "cpp")
-    os.makedirs(target_dir, exist_ok=True)
-    with open(os.path.join(target_dir, "AssetSchemaAdapter.h"), "w") as f:
+    cpp_dir = os.path.join(REPO_ROOT, "bindings", "cpp")
+    os.makedirs(cpp_dir, exist_ok=True)
+    with open(os.path.join(cpp_dir, "AssetSchemaAdapter.h"), "w") as f:
         f.write(cpp_code)
 
 def generate_kotlin():
@@ -111,9 +111,9 @@ class TextureTransformAdapter(
     )
 }
 """
-    target_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
-    os.makedirs(target_dir, exist_ok=True)
-    with open(os.path.join(target_dir, "AssetSchemaAdapter.kt"), "w") as f:
+    kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
+    os.makedirs(kt_dir, exist_ok=True)
+    with open(os.path.join(kt_dir, "AssetSchemaAdapter.kt"), "w") as f:
         f.write(kt_code)
 
 def generate_csharp():
@@ -174,13 +174,13 @@ namespace Linkpoint.LLSD.Schema
     }
 }
 """
-    target_dir = os.path.join(REPO_ROOT, "bindings", "csharp")
-    os.makedirs(target_dir, exist_ok=True)
-    with open(os.path.join(target_dir, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
+    os.makedirs(cs_dir1, exist_ok=True)
+    with open(os.path.join(cs_dir1, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-    cs_sdk_dir = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
-    os.makedirs(cs_sdk_dir, exist_ok=True)
-    with open(os.path.join(cs_sdk_dir, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir2 = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
+    os.makedirs(cs_dir2, exist_ok=True)
+    with open(os.path.join(cs_dir2, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
 
 def generate_java():
@@ -231,9 +231,9 @@ public class AssetSchemaAdapter {
     }
 }
 """
-    target_dir = os.path.join(REPO_ROOT, "bindings", "java")
-    os.makedirs(target_dir, exist_ok=True)
-    with open(os.path.join(target_dir, "AssetSchemaAdapter.java"), "w") as f:
+    java_dir = os.path.join(REPO_ROOT, "bindings", "java")
+    os.makedirs(java_dir, exist_ok=True)
+    with open(os.path.join(java_dir, "AssetSchemaAdapter.java"), "w") as f:
         f.write(java_code)
 
 def generate_typescript():
@@ -335,9 +335,9 @@ export interface MeshBlockAdapter {
     jointInfluences: JointInfluence[];
 }
 """
-    target_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
-    os.makedirs(target_dir, exist_ok=True)
-    with open(os.path.join(target_dir, "AssetSchemaAdapter.ts"), "w") as f:
+    ts_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
+    os.makedirs(ts_dir, exist_ok=True)
+    with open(os.path.join(ts_dir, "AssetSchemaAdapter.ts"), "w") as f:
         f.write(ts_code)
 
 def main():
