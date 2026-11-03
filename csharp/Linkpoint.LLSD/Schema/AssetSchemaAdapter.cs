@@ -15,7 +15,7 @@ namespace Linkpoint.LLSD.Schema
     public static class AssetSchemaConstants
     {
         public const int MAX_RIGGED_MESH_JOINTS = 256;
-        public const byte JOINT_SENTINEL = 0xFF;
+        public const ushort JOINT_SENTINEL = 0xFFFF;
 
         public static string GetLodKey(DetailLevel lod)
         {
@@ -52,5 +52,14 @@ namespace Linkpoint.LLSD.Schema
         {
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
+    }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
     }
 }

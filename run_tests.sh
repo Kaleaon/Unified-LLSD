@@ -24,22 +24,14 @@ echo "✓ Kotlin Native SDK passed!"
 echo ""
 echo "[3/7] Testing C# Native SDK..."
 cd "$ROOT_DIR/csharp"
-CSC_BIN=$(ls /usr/lib/dotnet/sdk/*/Roslyn/bincore/csc /usr/share/dotnet/sdk/*/Roslyn/bincore/csc 2>/dev/null | sort -V | tail -n 1)
-if [ -z "$CSC_BIN" ]; then
-    CSC_BIN=$(which csc 2>/dev/null || true)
-fi
-REF_DIR=$(ls -d /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net8.0 /usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net8.0 2>/dev/null | sort -V | tail -n 1)
-if [ -z "$REF_DIR" ]; then
-    REF_DIR=$(ls -d /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net* /usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/*/ref/net* 2>/dev/null | sort -V | tail -n 1)
-fi
-"$CSC_BIN" -target:exe -out:LLSDTests.exe *.cs -reference:"$REF_DIR/System.Runtime.dll" -reference:"$REF_DIR/System.Console.dll" -reference:"$REF_DIR/System.Xml.ReaderWriter.dll" -reference:"$REF_DIR/System.Linq.dll" -reference:"$REF_DIR/System.Collections.dll" -reference:"$REF_DIR/System.Memory.dll" -reference:"$REF_DIR/System.Security.Cryptography.dll" -reference:"$REF_DIR/System.ComponentModel.dll" -reference:"$REF_DIR/System.Xml.XmlSerializer.dll" > /dev/null
-dotnet LLSDTests.exe
+dotnet run --project Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
 echo "✓ C# Native SDK passed!"
 
 echo ""
 echo "[4/7] Testing Rust Native SDK..."
 cd "$ROOT_DIR/rust"
 cargo test -q
+cargo test --features serde -q
 echo "✓ Rust Native SDK passed!"
 
 echo ""
@@ -52,7 +44,7 @@ echo ""
 echo "[6/7] Testing TypeScript Native SDK..."
 cd "$ROOT_DIR/typescript"
 if [ ! -d "node_modules" ]; then
-    npm install > /dev/null
+    npm install > /dev/null 2>&1
 fi
 npm test > /dev/null
 echo "✓ TypeScript Native SDK passed!"
