@@ -109,5 +109,22 @@ namespace Linkpoint.LLSD.Tests
                 throw new Exception("Assert.Empty failed. Collection is not empty.");
             }
         }
+
+        public static T Throws<T>(Action action) where T : Exception
+        {
+            try
+            {
+                action();
+            }
+            catch (T ex)
+            {
+                return ex;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Assert.Throws failed. Expected {typeof(T).Name}, but got {ex.GetType().Name}: {ex.Message}");
+            }
+            throw new Exception($"Assert.Throws failed. Expected {typeof(T).Name}, but no exception was thrown.");
+        }
     }
 }

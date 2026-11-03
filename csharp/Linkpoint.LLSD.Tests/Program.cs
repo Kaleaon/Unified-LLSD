@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Linkpoint.LLSD.Tests
 {
@@ -20,7 +21,8 @@ namespace Linkpoint.LLSD.Tests
             {
                 typeof(LLSDCodecTests),
                 typeof(LLSDConformanceTests),
-                typeof(NetworkTests)
+                typeof(NetworkTests),
+                typeof(CapabilityClientTests)
             };
 
             foreach (var type in testClasses)
@@ -33,7 +35,11 @@ namespace Linkpoint.LLSD.Tests
                     try
                     {
                         Console.Write($"[RUNNING] {type.Name}.{method.Name}... ");
-                        method.Invoke(instance, null);
+                        var result = method.Invoke(instance, null);
+                        if (result is Task task)
+                        {
+                            task.GetAwaiter().GetResult();
+                        }
                         Console.WriteLine("PASSED");
                         passed++;
                     }
