@@ -6,5 +6,6 @@ export * from './AssetSchemaAdapter.js';
 export * from './LLSD.js';
 export * from './LLSDSerialize.js';
 export * from './MeshAssetDecoder.js';
+export * from './UIComponent.js';
 export * from './CapabilityClient.js';
 export * from './EventQueueClient.js';
