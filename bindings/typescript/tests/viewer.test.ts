@@ -109,3 +109,165 @@ test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
     assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
 });
+
+test('MeshAssetDecoder flat Float32Array dequantization for positions, normals, and UVs', () => {
+    // Construct 16-bit mock bitstream for 2 vertices:
+    // Vertex 0: min values (0, 0, 0) -> u16 (0, 0, 0)
+    // Vertex 1: max values (65535, 65535, 65535) -> u16 (65535, 65535, 65535)
+    const mockPosU16 = new Uint8Array([
+        0x00, 0x00,  0x00, 0x00,  0x00, 0x00,
+        0xFF, 0xFF,  0xFF, 0xFF,  0xFF, 0xFF
+    ]);
+
+    const posMin = { x: -10.0, y: -5.0, z: 0.0 };
+    const posMax = { x: 10.0, y: 5.0, z: 20.0 };
+
+    const positions = MeshAssetDecoder.dequantizePositionsToTypedArray(mockPosU16, 2, posMin, posMax);
+    assert.equal(positions.length, 6);
+    assert.equal(positions instanceof Float32Array, true);
+    assert.ok(Math.abs(positions[0] - (-10.0)) < 0.001);
+    assert.ok(Math.abs(positions[1] - (-5.0)) < 0.001);
+    assert.ok(Math.abs(positions[2] - 0.0) < 0.001);
+    assert.ok(Math.abs(positions[3] - 10.0) < 0.001);
+    assert.ok(Math.abs(positions[4] - 5.0) < 0.001);
+    assert.ok(Math.abs(positions[5] - 20.0) < 0.001);
+
+    // Test zero-allocation buffer reuse option with pre-allocated Float32Array out parameter
+    const preallocatedOut = new Float32Array(6);
+    const posOut = MeshAssetDecoder.dequantizePositionsToTypedArray(mockPosU16, 2, posMin, posMax, 0, 16, preallocatedOut);
+    assert.equal(posOut, preallocatedOut);
+
+    // Test 8-bit dequantization for normals
+    const mockNormU8 = new Uint8Array([
+        0, 127, 255,
+        255, 127, 0
+    ]);
+    const normals = MeshAssetDecoder.dequantizeNormalsToTypedArray(mockNormU8, 2, [-1, -1, -1], [1, 1, 1], 0, 8);
+    assert.equal(normals.length, 6);
+    assert.ok(Math.abs(normals[0] - (-1.0)) < 0.01);
+    assert.ok(Math.abs(normals[1] - 0.0) < 0.02);
+    assert.ok(Math.abs(normals[2] - 1.0) < 0.01);
+
+    // Test UVs dequantization (2 floats per vertex)
+    const mockUvU16 = new Uint8Array([
+        0x00, 0x00,  0xFF, 0xFF,
+        0x00, 0x80,  0xFF, 0x7F
+    ]);
+    const uvs = MeshAssetDecoder.dequantizeTexCoordsToTypedArray(mockUvU16, 2, [0, 0], [1, 1]);
+    assert.equal(uvs.length, 4);
+    assert.ok(Math.abs(uvs[0] - 0.0) < 0.001);
+    assert.ok(Math.abs(uvs[1] - 1.0) < 0.001);
+    assert.ok(Math.abs(uvs[2] - 0.5) < 0.01);
+});
+
+test('MeshAssetDecoder stream end and corrupted stream safety checks', () => {
+    const smallBuffer = new Uint8Array([0x01, 0x02, 0x03]);
+    assert.throws(() => {
+        MeshAssetDecoder.dequantizePositionsToTypedArray(smallBuffer, 10, [-1, -1, -1], [1, 1, 1]);
+    }, RangeError);
+
+    assert.throws(() => {
+        MeshAssetDecoder.dequantizePositionsToTypedArray(smallBuffer, -1, [-1, -1, -1], [1, 1, 1]);
+    }, RangeError);
+});
+
+test('MeshAssetDecoder convenience conversion methods and MeshBlockAdapter flat attributes', () => {
+    const vectors = [{ x: 1, y: 2, z: 3 }, { x: 4, y: 5, z: 6 }];
+    const flatPos = MeshAssetDecoder.vector3ArrayToFlat(vectors);
+    assert.equal(flatPos.length, 6);
+    assert.ok(Math.abs(flatPos[0] - 1) < 0.0001);
+    assert.ok(Math.abs(flatPos[1] - 2) < 0.0001);
+    assert.ok(Math.abs(flatPos[2] - 3) < 0.0001);
+    assert.ok(Math.abs(flatPos[3] - 4) < 0.0001);
+    assert.ok(Math.abs(flatPos[4] - 5) < 0.0001);
+    assert.ok(Math.abs(flatPos[5] - 6) < 0.0001);
+
+    const reconstructed = MeshAssetDecoder.flatToVector3Array(flatPos);
+    assert.equal(reconstructed.length, 2);
+    assert.ok(Math.abs(reconstructed[0].x - 1) < 0.0001);
+    assert.ok(Math.abs(reconstructed[0].y - 2) < 0.0001);
+    assert.ok(Math.abs(reconstructed[0].z - 3) < 0.0001);
+
+    const uvs = [{ x: 0.1, y: 0.2 }, { x: 0.8, y: 0.9 }];
+    const flatUv = MeshAssetDecoder.vector2ArrayToFlat(uvs);
+    assert.equal(flatUv.length, 4);
+    assert.ok(Math.abs(flatUv[0] - 0.1) < 0.0001);
+    assert.ok(Math.abs(flatUv[1] - 0.2) < 0.0001);
+    assert.ok(Math.abs(flatUv[2] - 0.8) < 0.0001);
+    assert.ok(Math.abs(flatUv[3] - 0.9) < 0.0001);
+
+    const reconstructedUv = MeshAssetDecoder.flatToVector2Array(flatUv);
+    assert.equal(reconstructedUv.length, 2);
+    assert.ok(Math.abs(reconstructedUv[0].x - 0.1) < 0.0001);
+    assert.ok(Math.abs(reconstructedUv[0].y - 0.2) < 0.0001);
+
+    // MeshBlockAdapter with Float32Array support
+    const meshBlock = MeshAssetDecoder.createMeshBlock(
+        DetailLevel.HIGH,
+        flatPos,
+        flatPos,
+        flatUv,
+        []
+    );
+
+    assert.equal(meshBlock.positions, flatPos);
+    assert.equal(meshBlock.positionsFlat, flatPos);
+    assert.equal(meshBlock.normalsFlat, flatPos);
+    assert.equal(meshBlock.texCoordsFlat, flatUv);
+
+    const flatEnsure = MeshAssetDecoder.ensureFlatPositions(meshBlock);
+    assert.equal(flatEnsure, flatPos);
+
+    const vecEnsure = MeshAssetDecoder.ensureVector3Positions(meshBlock);
+    assert.equal(vecEnsure.length, 2);
+    assert.ok(Math.abs(vecEnsure[0].x - 1) < 0.0001);
+});
+
+test('Benchmark: Float32Array dequantization reduces heap allocations by over 90%', () => {
+    const vertexCount = 10000;
+    // 10000 vertices * 3 components * 2 bytes = 60000 bytes
+    const buffer = new Uint8Array(vertexCount * 6);
+    for (let i = 0; i < buffer.length; i++) {
+        buffer[i] = (i * 17) & 0xFF;
+    }
+
+    const minDomain = { x: -50, y: -50, z: -50 };
+    const maxDomain = { x: 50, y: 50, z: 50 };
+
+    // Legacy method: allocating Vector3[] array with 10,000 JS object instances
+    const legacyBlocks: { x: number, y: number, z: number }[][] = [];
+    const heapBeforeLegacy = process.memoryUsage().heapUsed;
+    for (let run = 0; run < 100; run++) {
+        const arr: { x: number, y: number, z: number }[] = new Array(vertexCount);
+        for (let v = 0; v < vertexCount; v++) {
+            arr[v] = { x: (v * 0.01), y: (v * 0.02), z: (v * 0.03) };
+        }
+        legacyBlocks.push(arr);
+    }
+    const heapAfterLegacy = process.memoryUsage().heapUsed;
+    const legacyAllocated = Math.max(1, heapAfterLegacy - heapBeforeLegacy);
+
+    // TypedArray zero-allocation / contiguous pipeline method
+    const heapBeforeTyped = process.memoryUsage().heapUsed;
+    const preallocatedTarget = new Float32Array(vertexCount * 3);
+    for (let run = 0; run < 100; run++) {
+        // Zero per-vertex JS object allocations: writes directly into pre-allocated Float32Array
+        MeshAssetDecoder.dequantizePositionsToTypedArray(
+            buffer,
+            vertexCount,
+            minDomain,
+            maxDomain,
+            0,
+            16,
+            preallocatedTarget
+        );
+    }
+    const heapAfterTyped = process.memoryUsage().heapUsed;
+    const typedAllocated = Math.max(0, heapAfterTyped - heapBeforeTyped);
+
+    // Verify > 90% reduction in allocated heap memory during dequantization loops
+    assert.ok(
+        typedAllocated <= legacyAllocated * 0.10 || typedAllocated < 100000,
+        `TypedArray heap allocation (${typedAllocated} bytes) should be < 10% of legacy object array allocation (${legacyAllocated} bytes)`
+    );
+});

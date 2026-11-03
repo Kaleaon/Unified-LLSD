@@ -17,6 +17,7 @@ def generate_cpp():
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -62,12 +63,21 @@ struct TextureTransformAdapter {
     }
 };
 
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
+};
+
 } // namespace UnifiedLLSD
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 """
-    os.makedirs(os.path.join(REPO_ROOT, "bindings/cpp"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "bindings/cpp/AssetSchemaAdapter.h"), "w") as f:
+    cpp_dir = os.path.join(REPO_ROOT, "bindings", "cpp")
+    os.makedirs(cpp_dir, exist_ok=True)
+    with open(os.path.join(cpp_dir, "AssetSchemaAdapter.h"), "w") as f:
         f.write(cpp_code)
 
 def generate_kotlin():
@@ -109,9 +119,18 @@ class TextureTransformAdapter(
         scaleX, scaleY, rotation, offsetX, offsetY
     )
 }
+
+class MeshBlockAdapter(
+    var lod: DetailLevel = DetailLevel.HIGHEST,
+    var lodKey: String = "",
+    var positionsFlat: FloatArray = floatArrayOf(),
+    var normalsFlat: FloatArray = floatArrayOf(),
+    var texCoordsFlat: FloatArray = floatArrayOf()
+)
 """
-    os.makedirs(os.path.join(REPO_ROOT, "bindings/kotlin"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "bindings/kotlin/AssetSchemaAdapter.kt"), "w") as f:
+    kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
+    os.makedirs(kt_dir, exist_ok=True)
+    with open(os.path.join(kt_dir, "AssetSchemaAdapter.kt"), "w") as f:
         f.write(kt_code)
 
 def generate_csharp():
@@ -170,13 +189,24 @@ namespace Linkpoint.LLSD.Schema
             return new float[] { ScaleX, ScaleY, Rotation, OffsetX, OffsetY };
         }
     }
+
+    public class MeshBlockAdapter
+    {
+        public DetailLevel Lod { get; set; } = DetailLevel.Highest;
+        public string LodKey { get; set; } = "";
+        public float[] PositionsFlat { get; set; } = Array.Empty<float>();
+        public float[] NormalsFlat { get; set; } = Array.Empty<float>();
+        public float[] TexCoordsFlat { get; set; } = Array.Empty<float>();
+    }
 }
 """
-    os.makedirs(os.path.join(REPO_ROOT, "bindings/csharp"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "bindings/csharp/AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
+    os.makedirs(cs_dir1, exist_ok=True)
+    with open(os.path.join(cs_dir1, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-    os.makedirs(os.path.join(REPO_ROOT, "csharp/Linkpoint.LLSD/Schema"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "csharp/Linkpoint.LLSD/Schema/AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir2 = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
+    os.makedirs(cs_dir2, exist_ok=True)
+    with open(os.path.join(cs_dir2, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
 
 def generate_java():
@@ -225,10 +255,19 @@ public class AssetSchemaAdapter {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
     }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
+    }
 }
 """
-    os.makedirs(os.path.join(REPO_ROOT, "bindings/java"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "bindings/java/AssetSchemaAdapter.java"), "w") as f:
+    java_dir = os.path.join(REPO_ROOT, "bindings", "java")
+    os.makedirs(java_dir, exist_ok=True)
+    with open(os.path.join(java_dir, "AssetSchemaAdapter.java"), "w") as f:
         f.write(java_code)
 
 def generate_typescript():
@@ -324,14 +363,18 @@ export interface GLTFMaterialAdapter {
 export interface MeshBlockAdapter {
     lod: DetailLevel;
     lodKey: string;
-    positions: Vector3[];
-    normals: Vector3[];
-    texCoords: Vector2[];
+    positions: Vector3[] | Float32Array;
+    normals: Vector3[] | Float32Array;
+    texCoords: Vector2[] | Float32Array;
     jointInfluences: JointInfluence[];
+    positionsFlat?: Float32Array;
+    normalsFlat?: Float32Array;
+    texCoordsFlat?: Float32Array;
 }
 """
-    os.makedirs(os.path.join(REPO_ROOT, "bindings/typescript"), exist_ok=True)
-    with open(os.path.join(REPO_ROOT, "bindings/typescript/AssetSchemaAdapter.ts"), "w") as f:
+    ts_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
+    os.makedirs(ts_dir, exist_ok=True)
+    with open(os.path.join(ts_dir, "AssetSchemaAdapter.ts"), "w") as f:
         f.write(ts_code)
 
 def main():
