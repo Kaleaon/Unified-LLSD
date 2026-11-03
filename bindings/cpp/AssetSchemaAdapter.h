@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 
 namespace UnifiedLLSD {
 
@@ -48,6 +49,14 @@ struct TextureTransformAdapter {
     std::array<float, 5> GetPackedTight() const {
         return { scaleX, scaleY, rotation, offsetX, offsetY };
     }
+};
+
+struct MeshBlockAdapter {
+    DetailLevel lod = DetailLevel::Highest;
+    std::string lodKey;
+    std::vector<float> positionsFlat;
+    std::vector<float> normalsFlat;
+    std::vector<float> texCoordsFlat;
 };
 
 } // namespace UnifiedLLSD
