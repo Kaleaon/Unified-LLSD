@@ -97,4 +97,15 @@ final class LLSDTests: XCTestCase {
             XCTAssertEqual(sd.asUUID(), LLUUID.null, "Expected LLUUID.null from asUUID() for invalid input: \(input)")
         }
     }
+
+    static var allTests = [
+        ("test64BitIntegerHandling", test64BitIntegerHandling),
+        ("testBinaryDateLittleEndian", testBinaryDateLittleEndian),
+        ("testNotationRoundtrip", testNotationRoundtrip),
+        ("testCanonicalHyphenatedUUIDParsing", testCanonicalHyphenatedUUIDParsing),
+        ("testBracedUUIDParsing", testBracedUUIDParsing),
+        ("testUnhyphenatedUUIDParsing", testUnhyphenatedUUIDParsing),
+        ("testUppercaseAndMixedCaseUUIDParsing", testUppercaseAndMixedCaseUUIDParsing),
+        ("testInvalidUUIDParsing", testInvalidUUIDParsing),
+    ]
 }
