@@ -753,7 +753,6 @@ class _NotationParser {
           pos = closeParen + 1;
           if (pos < source.length &&
               (source[pos] == '"' || source[pos] == "'")) {
-            final q = source[pos];
             pos++;
             final strBytes = utf8.encode(source.substring(pos));
             final resStr = utf8.decode(strBytes.sublist(0, len));

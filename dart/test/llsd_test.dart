@@ -4,6 +4,9 @@ import '../lib/unified_llsd.dart';
 
 Directory? _findVectorsDir() {
   final candidates = [
+    '../resources/llsd-conformance/vectors',
+    'resources/llsd-conformance/vectors',
+    '../../resources/llsd-conformance/vectors',
     '../../Linkpoint/legacy/Linkpoint/src/test/resources/llsd-conformance/vectors',
     '../Linkpoint/legacy/Linkpoint/src/test/resources/llsd-conformance/vectors',
     '/app/Linkpoint/legacy/Linkpoint/src/test/resources/llsd-conformance/vectors',
@@ -12,6 +15,17 @@ Directory? _findVectorsDir() {
     final dir = Directory(path);
     if (dir.existsSync()) return dir;
   }
+  try {
+    final scriptDir = File(Platform.script.toFilePath()).parent;
+    final relativeToScript = [
+      Directory('${scriptDir.path}/../resources/llsd-conformance/vectors'),
+      Directory('${scriptDir.parent.path}/resources/llsd-conformance/vectors'),
+      Directory('${scriptDir.parent.parent.path}/resources/llsd-conformance/vectors'),
+    ];
+    for (final dir in relativeToScript) {
+      if (dir.existsSync()) return dir;
+    }
+  } catch (_) {}
   return null;
 }
 
