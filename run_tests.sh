@@ -5,8 +5,7 @@ echo "======================================================="
 echo "   Unified-LLSD Polyglot Cross-Language Test Runner   "
 echo "======================================================="
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="${SCRIPT_DIR}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo "[1/7] Testing C++ Native SDK..."
