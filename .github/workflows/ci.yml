@@ -31,7 +31,10 @@ jobs:
           cache-dependency-path: 'bindings/typescript/package-lock.json'
       - name: Run TypeScript Tests
         run: |
-          cd bindings/typescript
+          cd typescript
+          npm install
+          npm test
+          cd ../bindings/typescript
           npm install
           npm run test:source
   build:

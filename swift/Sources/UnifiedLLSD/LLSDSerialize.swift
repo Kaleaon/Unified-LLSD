@@ -107,21 +107,387 @@ public struct LLSDSerialize {
     // --- Notation ---
     public static func toNotation(_ sd: LLSD) -> String {
         switch sd {
-        case .undefined: return "!"
-        case .boolean(let b): return b ? "true" : "false"
-        case .integer(let i): return "i\(i)"
-        case .real(let r): return "r\(r)"
-        case .string(let s): return "'\(s)'"
-        default: return "!"
+        case .undefined:
+            return "!"
+        case .boolean(let b):
+            return b ? "true" : "false"
+        case .integer(let i):
+            return "i\(i)"
+        case .real(let r):
+            if r.isNaN { return "rnan" }
+            if r.isInfinite { return r > 0 ? "rinf" : "r-inf" }
+            return "r\(r)"
+        case .string(let s):
+            return "'\(escapeNotationString(s))'"
+        case .uuid(let u):
+            return "u\(u.description)"
+        case .date(let d):
+            return "d\"\(d.description)\""
+        case .uri(let u):
+            return "l\"\(u.description)\""
+        case .binary(let b):
+            return "b64\"\(b.base64EncodedString())\""
+        case .map(let m):
+            var res = "{"
+            var first = true
+            for key in m.keys.sorted() {
+                if !first { res += "," }
+                first = false
+                res += "'\(escapeNotationString(key))':\(toNotation(m[key]!))"
+            }
+            res += "}"
+            return res
+        case .array(let a):
+            var res = "["
+            var first = true
+            for v in a {
+                if !first { res += "," }
+                first = false
+                res += toNotation(v)
+            }
+            res += "]"
+            return res
         }
     }
 
-    public static func fromNotation(_ text: String) -> LLSD {
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if clean == "!" { return .undefined }
-        if clean.hasPrefix("i") {
-            if let i = Int64(clean.dropFirst()) { return .integer(i) }
+    private static func escapeNotationString(_ s: String) -> String {
+        var res = ""
+        for c in s {
+            if c == "'" || c == "\\" {
+                res.append("\\")
+            }
+            res.append(c)
         }
-        return .undefined
+        return res
+    }
+
+    public static func fromNotation(_ text: String) -> LLSD {
+        var cleaned = text
+        if cleaned.hasPrefix("<?llsd/notation?>") || cleaned.hasPrefix("<? llsd/notation ?>") {
+            if let newlineIndex = cleaned.firstIndex(of: "\n") {
+                cleaned = String(cleaned[cleaned.index(after: newlineIndex)...])
+            }
+        }
+        var parser = SwiftNotationParser(text: cleaned)
+        return parser.parse()
+    }
+}
+
+private struct SwiftNotationParser {
+    let chars: [Character]
+    var pos: Int = 0
+
+    init(text: String) {
+        self.chars = Array(text)
+    }
+
+    mutating func parse() -> LLSD {
+        skipWs()
+        return parseValue()
+    }
+
+    mutating func skipWs() {
+        while pos < chars.count && chars[pos].isWhitespace {
+            pos += 1
+        }
+    }
+
+    func peek() -> Character? {
+        guard pos < chars.count else { return nil }
+        return chars[pos]
+    }
+
+    func peekAt(_ offset: Int) -> Character? {
+        guard pos + offset < chars.count else { return nil }
+        return chars[pos + offset]
+    }
+
+    @discardableResult
+    mutating func consume() -> Character? {
+        guard pos < chars.count else { return nil }
+        let c = chars[pos]
+        pos += 1
+        return c
+    }
+
+    mutating func parseValue() -> LLSD {
+        skipWs()
+        guard let c = peek() else { return .undefined }
+
+        switch c {
+        case "!":
+            consume()
+            return .undefined
+        case "T", "t":
+            return parseBoolWord(true)
+        case "F", "f":
+            return parseBoolWord(false)
+        case "1":
+            consume()
+            return .boolean(true)
+        case "0":
+            consume()
+            return .boolean(false)
+        case "i":
+            consume()
+            let numStr = parseNumberWord()
+            let val = Int64(numStr) ?? 0
+            return .integer(val)
+        case "r":
+            consume()
+            let numStr = parseNumberWord()
+            if numStr == "nan" { return .real(.nan) }
+            if numStr == "inf" || numStr == "+inf" || numStr == "infinity" { return .real(.infinity) }
+            if numStr == "-inf" || numStr == "-infinity" { return .real(-.infinity) }
+            let val = Double(numStr) ?? 0.0
+            return .real(val)
+        case "u":
+            consume()
+            let uuidStr = parseUuidLiteral()
+            if let u = LLUUID(string: uuidStr) {
+                return .uuid(u)
+            }
+            return .uuid(.null)
+        case "d":
+            consume()
+            let qStr = parseQuotedAfterTag()
+            if let d = LLDate(isoString: qStr) {
+                return .date(d)
+            }
+            return .date(.null)
+        case "l":
+            consume()
+            let qStr = parseQuotedAfterTag()
+            return .uri(LLURI(uriString: qStr))
+        case "b":
+            return parseBinaryNotation()
+        case "s":
+            return parseSizedString()
+        case "'":
+            return .string(parseSingleQuoted())
+        case "\"":
+            return .string(parseDoubleQuoted())
+        case "{":
+            return parseMap()
+        case "[":
+            return parseArray()
+        default:
+            consume()
+            return .undefined
+        }
+    }
+
+    mutating func parseBoolWord(_ expectedBool: Bool) -> LLSD {
+        let word = expectedBool ? "true" : "false"
+        var matched = true
+        for (i, char) in word.enumerated() {
+            if let p = peekAt(i), p.lowercased() == String(char).lowercased() {
+                continue
+            } else {
+                matched = false
+                break
+            }
+        }
+        if matched {
+            pos += word.count
+        } else {
+            consume()
+        }
+        return .boolean(expectedBool)
+    }
+
+    mutating func parseNumberWord() -> String {
+        let start = pos
+        while pos < chars.count {
+            let c = chars[pos]
+            if c.isWhitespace || c == "," || c == "}" || c == "]" {
+                break
+            }
+            pos += 1
+        }
+        return String(chars[start..<pos])
+    }
+
+    mutating func parseUuidLiteral() -> String {
+        let start = pos
+        let end = min(start + 36, chars.count)
+        pos = end
+        return String(chars[start..<end])
+    }
+
+    mutating func parseQuotedAfterTag() -> String {
+        skipWs()
+        guard let c = peek() else { return "" }
+        if c == "\"" {
+            return parseDoubleQuoted()
+        } else if c == "'" {
+            return parseSingleQuoted()
+        }
+        return ""
+    }
+
+    mutating func parseDoubleQuoted() -> String {
+        guard peek() == "\"" else { return "" }
+        consume()
+        var sb = ""
+        while pos < chars.count && chars[pos] != "\"" {
+            if chars[pos] == "\\" && pos + 1 < chars.count {
+                pos += 1
+                sb.append(decodeEscape(chars[pos]))
+            } else {
+                sb.append(chars[pos])
+            }
+            pos += 1
+        }
+        if pos < chars.count { consume() }
+        return sb
+    }
+
+    mutating func parseSingleQuoted() -> String {
+        guard peek() == "'" else { return "" }
+        consume()
+        var sb = ""
+        while pos < chars.count && chars[pos] != "'" {
+            if chars[pos] == "\\" && pos + 1 < chars.count {
+                pos += 1
+                sb.append(decodeEscape(chars[pos]))
+            } else {
+                sb.append(chars[pos])
+            }
+            pos += 1
+        }
+        if pos < chars.count { consume() }
+        return sb
+    }
+
+    func decodeEscape(_ c: Character) -> Character {
+        switch c {
+        case "n": return "\n"
+        case "t": return "\t"
+        case "r": return "\r"
+        default: return c
+        }
+    }
+
+    mutating func parseSizedString() -> LLSD {
+        consume() // 's'
+        if peek() == "(" {
+            consume() // '('
+            let start = pos
+            while pos < chars.count && chars[pos] != ")" { pos += 1 }
+            let sizeStr = String(chars[start..<pos])
+            let size = Int(sizeStr) ?? 0
+            if pos < chars.count { consume() } // ')'
+            if pos < chars.count && (chars[pos] == "\"" || chars[pos] == "'") { consume() }
+            let end = min(pos + size, chars.count)
+            let str = String(chars[pos..<end])
+            pos = end
+            if pos < chars.count && (chars[pos] == "\"" || chars[pos] == "'") { consume() }
+            return .string(str)
+        }
+        if peek() == "\"" { return .string(parseDoubleQuoted()) }
+        if peek() == "'" { return .string(parseSingleQuoted()) }
+        return .string("")
+    }
+
+    mutating func parseBinaryNotation() -> LLSD {
+        consume() // 'b'
+        if peekAt(0) == "6" && peekAt(1) == "4" {
+            pos += 2
+            let dataStr = parseQuotedAfterTag()
+            if let data = Data(base64Encoded: dataStr) {
+                return .binary(data)
+            }
+            return .binary(Data())
+        }
+        if peekAt(0) == "1" && peekAt(1) == "6" {
+            pos += 2
+            let hexStr = parseQuotedAfterTag()
+            return .binary(hexDecode(hexStr))
+        }
+        if peekAt(0) == "(" {
+            consume() // '('
+            let start = pos
+            while pos < chars.count && chars[pos] != ")" { pos += 1 }
+            let sizeStr = String(chars[start..<pos])
+            let size = Int(sizeStr) ?? 0
+            if pos < chars.count { consume() } // ')'
+            if pos < chars.count && (chars[pos] == "\"" || chars[pos] == "'") { consume() }
+            let end = min(pos + size, chars.count)
+            var bytes = [UInt8]()
+            for i in pos..<end {
+                if let ascii = chars[i].asciiValue {
+                    bytes.append(ascii)
+                } else {
+                    bytes.append(0)
+                }
+            }
+            pos = end
+            if pos < chars.count && (chars[pos] == "\"" || chars[pos] == "'") { consume() }
+            return .binary(Data(bytes))
+        }
+        return .binary(Data())
+    }
+
+    func hexDecode(_ hex: String) -> Data {
+        let clean = hex.filter { !$0.isWhitespace }
+        var data = Data()
+        var index = clean.startIndex
+        while index < clean.endIndex {
+            let nextIndex = clean.index(index, offsetBy: 2, limitedBy: clean.endIndex) ?? clean.endIndex
+            if let byte = UInt8(clean[index..<nextIndex], radix: 16) {
+                data.append(byte)
+            }
+            index = nextIndex
+        }
+        return data
+    }
+
+    mutating func parseMap() -> LLSD {
+        consume() // '{'
+        var map = [String: LLSD]()
+        skipWs()
+        while pos < chars.count && peek() != "}" {
+            skipWs()
+            if peek() == "}" { break }
+            guard let c = peek() else { break }
+            var key = ""
+            if c == "'" {
+                key = parseSingleQuoted()
+            } else if c == "\"" {
+                key = parseDoubleQuoted()
+            } else if c == "s" {
+                key = parseSizedString().asString()
+            } else {
+                key = parseNumberWord()
+            }
+            skipWs()
+            if peek() == ":" { consume() }
+            skipWs()
+            let val = parseValue()
+            map[key] = val
+            skipWs()
+            if peek() == "," { consume() }
+            skipWs()
+        }
+        if pos < chars.count && peek() == "}" { consume() }
+        return .map(map)
+    }
+
+    mutating func parseArray() -> LLSD {
+        consume() // '['
+        var array = [LLSD]()
+        skipWs()
+        while pos < chars.count && peek() != "]" {
+            skipWs()
+            if peek() == "]" { break }
+            let val = parseValue()
+            array.append(val)
+            skipWs()
+            if peek() == "," { consume() }
+            skipWs()
+        }
+        if pos < chars.count && peek() == "]" { consume() }
+        return .array(array)
     }
 }
