@@ -1,26 +1,33 @@
 import Foundation
 
-public struct LLDate: Equatable, Hashable, CustomStringConvertible {
+public struct LLDate: Equatable, Hashable, CustomStringConvertible, Codable {
     public var secondsSinceEpoch: Double
 
     public static let null = LLDate(secondsSinceEpoch: 0.0)
+
+    private static let fractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let standardFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 
     public init(secondsSinceEpoch: Double) {
         self.secondsSinceEpoch = secondsSinceEpoch
     }
 
     public init?(isoString: String) {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: isoString) {
+        if let date = LLDate.fractionalFormatter.date(from: isoString) {
+            self.secondsSinceEpoch = date.timeIntervalSince1970
+        } else if let date = LLDate.standardFormatter.date(from: isoString) {
             self.secondsSinceEpoch = date.timeIntervalSince1970
         } else {
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: isoString) {
-                self.secondsSinceEpoch = date.timeIntervalSince1970
-            } else {
-                return nil
-            }
+            return nil
         }
     }
 
@@ -34,8 +41,7 @@ public struct LLDate: Equatable, Hashable, CustomStringConvertible {
 
     public var description: String {
         let date = Date(timeIntervalSince1970: secondsSinceEpoch)
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.string(from: date)
+        return LLDate.standardFormatter.string(from: date)
     }
 }
+
