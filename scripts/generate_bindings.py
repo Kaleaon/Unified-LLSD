@@ -106,9 +106,9 @@ struct GLTFMaterialAdapter {
 
 #endif // UNIFIED_LLSD_ASSET_SCHEMA_ADAPTER_H
 """
-    out_dir = os.path.join(REPO_ROOT, "bindings", "cpp")
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "AssetSchemaAdapter.h"), "w") as f:
+    cpp_dir = os.path.join(REPO_ROOT, "bindings", "cpp")
+    os.makedirs(cpp_dir, exist_ok=True)
+    with open(os.path.join(cpp_dir, "AssetSchemaAdapter.h"), "w") as f:
         f.write(cpp_code)
 
 def generate_kotlin():
@@ -172,9 +172,9 @@ class GLTFMaterial(
         else floatArrayOf(1.0f, 1.0f, 0.0f, 0.0f, 0.0f)
 }
 """
-    out_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "AssetSchemaAdapter.kt"), "w") as f:
+    kt_dir = os.path.join(REPO_ROOT, "bindings", "kotlin")
+    os.makedirs(kt_dir, exist_ok=True)
+    with open(os.path.join(kt_dir, "AssetSchemaAdapter.kt"), "w") as f:
         f.write(kt_code)
     kt_src1 = os.path.join(REPO_ROOT, "kotlin", "src", "main", "kotlin", "com", "unifiedllsd", "schema")
     os.makedirs(kt_src1, exist_ok=True)
@@ -281,13 +281,13 @@ namespace Linkpoint.LLSD.Schema
     }
 }
 """
-    out_dir = os.path.join(REPO_ROOT, "bindings", "csharp")
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
+    os.makedirs(cs_dir1, exist_ok=True)
+    with open(os.path.join(cs_dir1, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-    cs_src = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
-    os.makedirs(cs_src, exist_ok=True)
-    with open(os.path.join(cs_src, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir2 = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
+    os.makedirs(cs_dir2, exist_ok=True)
+    with open(os.path.join(cs_dir2, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
 
 def generate_java():
@@ -365,9 +365,9 @@ public class AssetSchemaAdapter {
     }
 }
 """
-    out_dir = os.path.join(REPO_ROOT, "bindings", "java")
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "AssetSchemaAdapter.java"), "w") as f:
+    java_dir = os.path.join(REPO_ROOT, "bindings", "java")
+    os.makedirs(java_dir, exist_ok=True)
+    with open(os.path.join(java_dir, "AssetSchemaAdapter.java"), "w") as f:
         f.write(java_code)
 
 def generate_typescript():
@@ -495,9 +495,9 @@ export interface MeshBlockAdapter {
     jointInfluences: JointInfluence[];
 }
 """
-    out_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "AssetSchemaAdapter.ts"), "w") as f:
+    ts_dir = os.path.join(REPO_ROOT, "bindings", "typescript")
+    os.makedirs(ts_dir, exist_ok=True)
+    with open(os.path.join(ts_dir, "AssetSchemaAdapter.ts"), "w") as f:
         f.write(ts_code)
 
 def main():
