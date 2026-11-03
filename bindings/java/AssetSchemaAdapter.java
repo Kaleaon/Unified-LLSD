@@ -43,4 +43,12 @@ public class AssetSchemaAdapter {
             return new float[] { scaleX, scaleY, rotation, offsetX, offsetY };
         }
     }
+
+    public static class MeshBlock {
+        public DetailLevel lod;
+        public String lodKey;
+        public float[] positionsFlat;
+        public float[] normalsFlat;
+        public float[] texCoordsFlat;
+    }
 }
