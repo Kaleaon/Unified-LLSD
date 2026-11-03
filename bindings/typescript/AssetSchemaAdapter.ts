@@ -80,11 +80,37 @@ export interface JointInfluence {
     weight: number;
 }
 
-export interface GLTFMaterialAdapter {
-    alphaMode: AlphaMode;
-    alphaCutoff: number;
-    doubleSided: boolean;
-    transforms: TextureTransformAdapter[];
+export class GLTFMaterialAdapter {
+    public alphaMode: AlphaMode = AlphaMode.OPAQUE;
+    public alphaCutoff: number = 0.5;
+    public doubleSided: boolean = false;
+    public transforms: TextureTransformAdapter[] = [];
+
+    constructor(
+        alphaMode: AlphaMode = AlphaMode.OPAQUE,
+        alphaCutoff: number = 0.5,
+        doubleSided: boolean = false,
+        transforms: TextureTransformAdapter[] = []
+    ) {
+        this.alphaMode = alphaMode;
+        this.alphaCutoff = alphaCutoff;
+        this.doubleSided = doubleSided;
+        this.transforms = transforms;
+    }
+
+    public getPacked(index: number = 0): Float32Array {
+        if (index >= 0 && index < this.transforms.length) {
+            return this.transforms[index].getPacked();
+        }
+        return new Float32Array([1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    }
+
+    public getPackedTight(index: number = 0): Float32Array {
+        if (index >= 0 && index < this.transforms.length) {
+            return this.transforms[index].getPackedTight();
+        }
+        return new Float32Array([1.0, 1.0, 0.0, 0.0, 0.0]);
+    }
 }
 
 export interface MeshBlockAdapter {
