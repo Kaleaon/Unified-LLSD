@@ -61,7 +61,7 @@ table GLTFMaterial {
 }
 
 struct JointInfluence {
-  joint_index: ubyte;
+  joint_index: ushort;
   weight: float;
 }
 
@@ -72,11 +72,14 @@ table MeshBlock {
   normals: [Vector3];
   tex_coords: [Vector2];
   joint_influences: [JointInfluence];
+  positions_flat: [float];
+  normals_flat: [float];
+  tex_coords_flat: [float];
 }
 
 table AssetMetadata {
   max_rigged_mesh_joints: uint = 256;
-  joint_sentinel: ubyte = 255;
+  joint_sentinel: ushort = 65535;
 }
 
 root_type GLTFMaterial;
