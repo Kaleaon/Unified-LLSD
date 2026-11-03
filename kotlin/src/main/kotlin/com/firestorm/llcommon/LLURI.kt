@@ -100,12 +100,32 @@ class LLURI private constructor(
     override fun hashCode(): Int = asString().hashCode()
 
     companion object {
-        private val UNRESERVED = buildString {
-            append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-            append("0123456789")
-            append("-._~")
-        }
+        private const val UNRESERVED = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
         private val UNRESERVED_SORTED = UNRESERVED.toSortedSet().joinToString("")
+        private val QUERY_VALUE_ALLOWED = UNRESERVED + ":@!$'()*,="
+        private val QUERY_VARIABLE_ALLOWED = UNRESERVED + ":@!$'()*,"
+
+        private val HEX_DIGITS = charArrayOf(
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+        )
+
+        private val UNRESERVED_TABLE = BooleanArray(128).apply {
+            for (ch in UNRESERVED) {
+                if (ch.code < 128) this[ch.code] = true
+            }
+        }
+
+        private val QUERY_VALUE_TABLE = BooleanArray(128).apply {
+            for (ch in QUERY_VALUE_ALLOWED) {
+                if (ch.code < 128) this[ch.code] = true
+            }
+        }
+
+        private val QUERY_VARIABLE_TABLE = BooleanArray(128).apply {
+            for (ch in QUERY_VARIABLE_ALLOWED) {
+                if (ch.code < 128) this[ch.code] = true
+            }
+        }
 
         fun fromString(s: String): LLURI {
             val colonIdx = s.indexOf(':')
@@ -168,17 +188,113 @@ class LLURI private constructor(
         fun escape(str: String): String = escapeWithAllowed(str, UNRESERVED_SORTED, sorted = true)
 
         fun escapeQueryValue(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,=", sorted = false)
+            escapeWithAllowed(str, QUERY_VALUE_ALLOWED, sorted = false)
 
         fun escapeQueryVariable(str: String): String =
-            escapeWithAllowed(str, UNRESERVED + ":@!\$'()*,", sorted = false)
+            escapeWithAllowed(str, QUERY_VARIABLE_ALLOWED, sorted = false)
 
         fun escapeWithAllowed(str: String, allowed: String, sorted: Boolean = false): String {
-            val allowedSet = if (sorted) allowed.toSortedSet() else allowed.toSet()
-            return buildString {
-                for (c in str) {
-                    if (c in allowedSet) append(c)
-                    else append(encodeChar(c))
+            if (str.isEmpty()) return str
+
+            val (table, customNonAsciiSet) = when {
+                allowed === UNRESERVED || allowed === UNRESERVED_SORTED || allowed == UNRESERVED || allowed == UNRESERVED_SORTED ->
+                    UNRESERVED_TABLE to null
+                allowed === QUERY_VALUE_ALLOWED || allowed == QUERY_VALUE_ALLOWED ->
+                    QUERY_VALUE_TABLE to null
+                allowed === QUERY_VARIABLE_ALLOWED || allowed == QUERY_VARIABLE_ALLOWED ->
+                    QUERY_VARIABLE_TABLE to null
+                else ->
+                    buildCustomLookupTable(allowed)
+            }
+
+            var firstDirtyIndex = -1
+            for (i in 0 until str.length) {
+                val c = str[i]
+                val isAllowed = if (c.code < 128) {
+                    table[c.code]
+                } else {
+                    customNonAsciiSet?.contains(c) == true
+                }
+                if (!isAllowed) {
+                    firstDirtyIndex = i
+                    break
+                }
+            }
+
+            if (firstDirtyIndex == -1) {
+                return str
+            }
+
+            val sb = StringBuilder(str.length + 16)
+            sb.append(str, 0, firstDirtyIndex)
+
+            var i = firstDirtyIndex
+            while (i < str.length) {
+                val c = str[i]
+                if (c.code < 128) {
+                    if (table[c.code]) {
+                        sb.append(c)
+                    } else {
+                        appendPercentByte(sb, c.code)
+                    }
+                    i++
+                } else {
+                    if (customNonAsciiSet?.contains(c) == true) {
+                        sb.append(c)
+                    } else if (c.isHighSurrogate() && i + 1 < str.length && str[i + 1].isLowSurrogate()) {
+                        val cp = Character.toCodePoint(c, str[i + 1])
+                        encodeCodePointToUtf8(sb, cp)
+                        i += 2
+                    } else {
+                        encodeCodePointToUtf8(sb, c.code)
+                        i++
+                    }
+                }
+            }
+
+            return sb.toString()
+        }
+
+        private fun buildCustomLookupTable(allowed: String): Pair<BooleanArray, Set<Char>?> {
+            val table = BooleanArray(128)
+            var nonAsciiSet: MutableSet<Char>? = null
+            for (i in 0 until allowed.length) {
+                val ch = allowed[i]
+                if (ch.code < 128) {
+                    table[ch.code] = true
+                } else {
+                    if (nonAsciiSet == null) nonAsciiSet = HashSet()
+                    nonAsciiSet.add(ch)
+                }
+            }
+            return Pair(table, nonAsciiSet)
+        }
+
+        private fun appendPercentByte(sb: StringBuilder, b: Int) {
+            sb.append('%')
+            sb.append(HEX_DIGITS[(b ushr 4) and 0x0F])
+            sb.append(HEX_DIGITS[b and 0x0F])
+        }
+
+        private fun encodeCodePointToUtf8(sb: StringBuilder, cp: Int) {
+            when {
+                cp <= 0x7F -> {
+                    appendPercentByte(sb, cp)
+                }
+                cp <= 0x7FF -> {
+                    appendPercentByte(sb, 0xC0 or (cp ushr 6))
+                    appendPercentByte(sb, 0x80 or (cp and 0x3F))
+                }
+                cp <= 0xFFFF -> {
+                    appendPercentByte(sb, 0xE0 or (cp ushr 12))
+                    appendPercentByte(sb, 0x80 or ((cp ushr 6) and 0x3F))
+                    appendPercentByte(sb, 0x80 or (cp and 0x3F))
+                }
+                else -> {
+                    appendPercentByte(sb, 0xF0 or (cp ushr 18))
+                    appendPercentByte(sb, 0x80 or ((cp ushr 12) and 0x3F))
+                    appendPercentByte(sb, 0x80 or ((cp ushr 6) and 0x3F))
+                    appendPercentByte(sb, 0x80 or (cp and 0x3F))
                 }
             }
         }
