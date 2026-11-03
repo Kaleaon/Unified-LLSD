@@ -71,4 +71,14 @@ final class LLSDTests: XCTestCase {
         XCTAssertTrue(xml.contains("<key>id</key><integer>0</integer>"))
         XCTAssertTrue(xml.contains("<key>val</key><string>item_99</string>"))
     }
+
+    static var allTests = [
+        ("test64BitIntegerHandling", test64BitIntegerHandling),
+        ("testBinaryDateLittleEndian", testBinaryDateLittleEndian),
+        ("testNotationRoundtrip", testNotationRoundtrip),
+        ("testXMLSerializationScalars", testXMLSerializationScalars),
+        ("testXMLSerializationDeclaration", testXMLSerializationDeclaration),
+        ("testXMLSerializationMapAndArray", testXMLSerializationMapAndArray),
+        ("testXMLSerializationLargeNested", testXMLSerializationLargeNested),
+    ]
 }
