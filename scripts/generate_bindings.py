@@ -174,13 +174,13 @@ namespace Linkpoint.LLSD.Schema
     }
 }
 """
-    cs_dir = os.path.join(REPO_ROOT, "bindings", "csharp")
-    os.makedirs(cs_dir, exist_ok=True)
-    with open(os.path.join(cs_dir, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir1 = os.path.join(REPO_ROOT, "bindings", "csharp")
+    os.makedirs(cs_dir1, exist_ok=True)
+    with open(os.path.join(cs_dir1, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
-    cs_target_dir = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
-    os.makedirs(cs_target_dir, exist_ok=True)
-    with open(os.path.join(cs_target_dir, "AssetSchemaAdapter.cs"), "w") as f:
+    cs_dir2 = os.path.join(REPO_ROOT, "csharp", "Linkpoint.LLSD", "Schema")
+    os.makedirs(cs_dir2, exist_ok=True)
+    with open(os.path.join(cs_dir2, "AssetSchemaAdapter.cs"), "w") as f:
         f.write(cs_code)
 
 def generate_java():
