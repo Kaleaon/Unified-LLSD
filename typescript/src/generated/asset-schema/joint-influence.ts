@@ -12,7 +12,7 @@ export class JointInfluence {
 }
 
 jointIndex():number {
-  return this.bb!.readUint8(this.bb_pos);
+  return this.bb!.readUint16(this.bb_pos);
 }
 
 weight():number {
@@ -26,8 +26,8 @@ static sizeOf():number {
 static createJointInfluence(builder:flatbuffers.Builder, joint_index: number, weight: number):flatbuffers.Offset {
   builder.prep(4, 8);
   builder.writeFloat32(weight);
-  builder.pad(3);
-  builder.writeInt8(joint_index);
+  builder.pad(2);
+  builder.writeInt16(joint_index);
   return builder.offset();
 }
 

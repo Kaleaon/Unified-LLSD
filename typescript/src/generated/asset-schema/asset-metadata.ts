@@ -27,7 +27,7 @@ maxRiggedMeshJoints():number {
 
 jointSentinel():number {
   const offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 255;
+  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 65535;
 }
 
 static startAssetMetadata(builder:flatbuffers.Builder) {
@@ -39,7 +39,7 @@ static addMaxRiggedMeshJoints(builder:flatbuffers.Builder, maxRiggedMeshJoints:n
 }
 
 static addJointSentinel(builder:flatbuffers.Builder, jointSentinel:number) {
-  builder.addFieldInt8(1, jointSentinel, 255);
+  builder.addFieldInt16(1, jointSentinel, 65535);
 }
 
 static endAssetMetadata(builder:flatbuffers.Builder):flatbuffers.Offset {

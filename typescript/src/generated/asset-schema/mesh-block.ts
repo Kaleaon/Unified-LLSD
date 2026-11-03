@@ -78,8 +78,53 @@ jointInfluencesLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+positionsFlat(index: number):number|null {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.readFloat32(this.bb!.__vector(this.bb_pos + offset) + index * 4) : 0;
+}
+
+positionsFlatLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+positionsFlatArray():Float32Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? new Float32Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+}
+
+normalsFlat(index: number):number|null {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.readFloat32(this.bb!.__vector(this.bb_pos + offset) + index * 4) : 0;
+}
+
+normalsFlatLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+normalsFlatArray():Float32Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? new Float32Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+}
+
+texCoordsFlat(index: number):number|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.readFloat32(this.bb!.__vector(this.bb_pos + offset) + index * 4) : 0;
+}
+
+texCoordsFlatLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+texCoordsFlatArray():Float32Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? new Float32Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+}
+
 static startMeshBlock(builder:flatbuffers.Builder) {
-  builder.startObject(6);
+  builder.startObject(9);
 }
 
 static addLod(builder:flatbuffers.Builder, lod:DetailLevel) {
@@ -122,12 +167,75 @@ static startJointInfluencesVector(builder:flatbuffers.Builder, numElems:number) 
   builder.startVector(8, numElems, 4);
 }
 
+static addPositionsFlat(builder:flatbuffers.Builder, positionsFlatOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(6, positionsFlatOffset, 0);
+}
+
+static createPositionsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array):flatbuffers.Offset;
+/**
+ * @deprecated This Uint8Array overload will be removed in the future.
+ */
+static createPositionsFlatVector(builder:flatbuffers.Builder, data:number[]|Uint8Array):flatbuffers.Offset;
+static createPositionsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array|Uint8Array):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addFloat32(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startPositionsFlatVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addNormalsFlat(builder:flatbuffers.Builder, normalsFlatOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(7, normalsFlatOffset, 0);
+}
+
+static createNormalsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array):flatbuffers.Offset;
+/**
+ * @deprecated This Uint8Array overload will be removed in the future.
+ */
+static createNormalsFlatVector(builder:flatbuffers.Builder, data:number[]|Uint8Array):flatbuffers.Offset;
+static createNormalsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array|Uint8Array):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addFloat32(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startNormalsFlatVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addTexCoordsFlat(builder:flatbuffers.Builder, texCoordsFlatOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(8, texCoordsFlatOffset, 0);
+}
+
+static createTexCoordsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array):flatbuffers.Offset;
+/**
+ * @deprecated This Uint8Array overload will be removed in the future.
+ */
+static createTexCoordsFlatVector(builder:flatbuffers.Builder, data:number[]|Uint8Array):flatbuffers.Offset;
+static createTexCoordsFlatVector(builder:flatbuffers.Builder, data:number[]|Float32Array|Uint8Array):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addFloat32(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startTexCoordsFlatVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endMeshBlock(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createMeshBlock(builder:flatbuffers.Builder, lod:DetailLevel, lodKeyOffset:flatbuffers.Offset, positionsOffset:flatbuffers.Offset, normalsOffset:flatbuffers.Offset, texCoordsOffset:flatbuffers.Offset, jointInfluencesOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createMeshBlock(builder:flatbuffers.Builder, lod:DetailLevel, lodKeyOffset:flatbuffers.Offset, positionsOffset:flatbuffers.Offset, normalsOffset:flatbuffers.Offset, texCoordsOffset:flatbuffers.Offset, jointInfluencesOffset:flatbuffers.Offset, positionsFlatOffset:flatbuffers.Offset, normalsFlatOffset:flatbuffers.Offset, texCoordsFlatOffset:flatbuffers.Offset):flatbuffers.Offset {
   MeshBlock.startMeshBlock(builder);
   MeshBlock.addLod(builder, lod);
   MeshBlock.addLodKey(builder, lodKeyOffset);
@@ -135,6 +243,9 @@ static createMeshBlock(builder:flatbuffers.Builder, lod:DetailLevel, lodKeyOffse
   MeshBlock.addNormals(builder, normalsOffset);
   MeshBlock.addTexCoords(builder, texCoordsOffset);
   MeshBlock.addJointInfluences(builder, jointInfluencesOffset);
+  MeshBlock.addPositionsFlat(builder, positionsFlatOffset);
+  MeshBlock.addNormalsFlat(builder, normalsFlatOffset);
+  MeshBlock.addTexCoordsFlat(builder, texCoordsFlatOffset);
   return MeshBlock.endMeshBlock(builder);
 }
 }

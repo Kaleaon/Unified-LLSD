@@ -46,8 +46,9 @@ export class LLSDSerialize {
     }
 
     // --- JSON ---
-    public static toJSON(value: LLSDValue): string {
-        return JSON.stringify(LLSDSerialize.toJSObject(value), null, 2);
+    public static toJSON(value: any): string {
+        const llsd = value instanceof LLSDValue ? value : LLSDValue.fromJSObject(value);
+        return JSON.stringify(LLSDSerialize.toJSObject(llsd), null, 2);
     }
 
     public static fromJSON(jsonStr: string): LLSDValue {
@@ -103,8 +104,9 @@ export class LLSDSerialize {
     }
 
     // --- NOTATION ---
-    public static toNotation(val: LLSDValue): string {
-        switch (val.type) {
+    public static toNotation(val: any): string {
+        const llsd = val instanceof LLSDValue ? val : LLSDValue.fromJSObject(val);
+        switch (llsd.type) {
             case LLSDType.UNDEFINED: return '!';
             case LLSDType.BOOLEAN: return val.asBoolean() ? '1' : '0';
             case LLSDType.INTEGER: return `i${val.asBigInt()}`;
@@ -116,13 +118,13 @@ export class LLSDSerialize {
             case LLSDType.BINARY: return `b64"${val.asBinary().toBase64()}"`;
             case LLSDType.MAP: {
                 const parts: string[] = [];
-                val.asMap.forEach((v, k) => {
+                val.asMap.forEach((v: LLSDValue, k: string) => {
                     parts.push(`'${k}':${LLSDSerialize.toNotation(v)}`);
                 });
                 return `{${parts.join(',')}}`;
             }
             case LLSDType.ARRAY: {
-                const parts = val.asArray.map(v => LLSDSerialize.toNotation(v));
+                const parts = val.asArray.map((v: LLSDValue) => LLSDSerialize.toNotation(v));
                 return `[${parts.join(',')}]`;
             }
         }
@@ -293,9 +295,10 @@ export class LLSDSerialize {
     }
 
     // --- BINARY ---
-    public static toBinary(val: LLSDValue): Uint8Array {
+    public static toBinary(val: any): Uint8Array {
+        const llsd = val instanceof LLSDValue ? val : LLSDValue.fromJSObject(val);
         const header = new TextEncoder().encode(LLSDSerialize.BINARY_HEADER + '\n');
-        const body = LLSDSerialize.encodeBinaryValue(val);
+        const body = LLSDSerialize.encodeBinaryValue(llsd);
         const result = new Uint8Array(header.length + body.length);
         result.set(header, 0);
         result.set(body, header.length);
@@ -517,8 +520,9 @@ export class LLSDSerialize {
     }
 
     // --- XML ---
-    public static toXML(val: LLSDValue, withDeclaration: boolean = false): string {
-        const body = LLSDSerialize.encodeXMLValue(val, 2);
+    public static toXML(val: any, withDeclaration: boolean = false): string {
+        const llsd = val instanceof LLSDValue ? val : LLSDValue.fromJSObject(val);
+        const body = LLSDSerialize.encodeXMLValue(llsd, 2);
         if (withDeclaration) {
             return `<?xml version="1.0" encoding="UTF-8"?>\n<llsd>\n${body}\n</llsd>`;
         }

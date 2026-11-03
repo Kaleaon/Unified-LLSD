@@ -70,14 +70,50 @@ export class LLSDValue {
             this.value = val;
         } else if (Array.isArray(val)) {
             this.type = LLSDType.ARRAY;
-            this.value = val;
+            this.value = val.map(item => item instanceof LLSDValue ? item : LLSDValue.fromJSObject(item));
         } else if (val instanceof LLSDValue) {
             this.type = val.type;
             this.value = val.value;
+        } else if (typeof val === 'object') {
+            this.type = LLSDType.MAP;
+            const m = new Map<string, LLSDValue>();
+            for (const [k, v] of Object.entries(val)) {
+                m.set(k, v instanceof LLSDValue ? v : LLSDValue.fromJSObject(v));
+            }
+            this.value = m;
         } else {
             this.type = LLSDType.UNDEFINED;
             this.value = null;
         }
+    }
+
+    public static fromJSObject(obj: any): LLSDValue {
+        if (obj === null || obj === undefined) return LLSDValue.undefined;
+        if (obj instanceof LLSDValue) return obj;
+        if (typeof obj === 'boolean') return LLSDValue.boolean(obj);
+        if (typeof obj === 'number') return Number.isInteger(obj) ? LLSDValue.integer(obj) : LLSDValue.real(obj);
+        if (typeof obj === 'bigint') return LLSDValue.integer(obj);
+        if (typeof obj === 'string') return LLSDValue.string(obj);
+        if (obj instanceof LLUUID) return LLSDValue.uuid(obj);
+        if (obj instanceof LLDate) return LLSDValue.date(obj);
+        if (obj instanceof LLURI) return LLSDValue.uri(obj);
+        if (obj instanceof LLSDBinary || obj instanceof Uint8Array) return LLSDValue.binary(obj);
+        if (Array.isArray(obj)) return LLSDValue.array(obj.map(item => LLSDValue.fromJSObject(item)));
+        if (obj instanceof Map) {
+            const mapObj = new Map<string, LLSDValue>();
+            for (const [k, v] of obj.entries()) {
+                mapObj.set(String(k), LLSDValue.fromJSObject(v));
+            }
+            return new LLSDValue(mapObj, LLSDType.MAP);
+        }
+        if (typeof obj === 'object') {
+            const mapObj = new Map<string, LLSDValue>();
+            for (const [k, v] of Object.entries(obj)) {
+                mapObj.set(k, LLSDValue.fromJSObject(v));
+            }
+            return new LLSDValue(mapObj, LLSDType.MAP);
+        }
+        return LLSDValue.undefined;
     }
 
     public static staticUndefined(): LLSDValue {
