@@ -18,7 +18,7 @@ import {
 
 test('AssetSchemaAdapter constants and LOD mapping', () => {
     assert.equal(AssetSchemaConstants.MAX_RIGGED_MESH_JOINTS, 256);
-    assert.equal(AssetSchemaConstants.JOINT_SENTINEL, 0xFF);
+    assert.equal(AssetSchemaConstants.JOINT_SENTINEL, 0xFFFF);
 
     assert.equal(AssetSchemaConstants.getLodKey(DetailLevel.HIGHEST), 'high_lod');
     assert.equal(AssetSchemaConstants.getLodKey(DetailLevel.HIGH), 'high_lod');
@@ -95,18 +95,80 @@ test('LLSD Multi-Format Serialization & Auto-Detect', () => {
     assert.equal(autoParsed.get('balance').asInteger(), 250);
 });
 
+test('CapabilityClient binary parsing & sequence tracking', async () => {
+    const { CapabilityClient } = await import('../CapabilityClient.js');
+    const responsePayload = LLSDValue.map({
+        id: LLSDValue.integer(888),
+        events: LLSDValue.array([
+            LLSDValue.map({
+                message: LLSDValue.string('TeleportFinish'),
+                body: LLSDValue.string('success')
+            })
+        ])
+    });
+    const binaryData = LLSDSerialize.toBinary(responsePayload);
+
+    let capturedBody = '';
+    const mockFetch: any = async (url: string, init: any) => {
+        capturedBody = init.body;
+        return {
+            ok: true,
+            status: 200,
+            headers: new Map([['content-type', 'application/llsd+binary']]),
+            arrayBuffer: async () => binaryData.buffer.slice(binaryData.byteOffset, binaryData.byteOffset + binaryData.byteLength)
+        };
+    };
+
+    const capClient = new CapabilityClient(mockFetch);
+    const result = await capClient.pollEventQueue('https://example.com/eq', 42);
+
+    assert.equal(result.id, 888);
+    assert.equal(result.nextAck, 888);
+    assert.equal(result.events.length, 1);
+    assert.equal(result.events[0].message, 'TeleportFinish');
+    assert.ok(capturedBody.includes('<key>ack</key>') && capturedBody.includes('<integer>42</integer>'));
+});
+
+test('EventQueueClient 502/504 timeout immediate retry vs 500 backoff', async () => {
+    const { CapabilityClient } = await import('../CapabilityClient.js');
+    const { EventQueueClient } = await import('../EventQueueClient.js');
+
+    let callCount = 0;
+    const mockFetch: any = async () => {
+        callCount++;
+        if (callCount === 1) {
+            return { ok: false, status: 504, statusText: 'Gateway Timeout' };
+        }
+        return { ok: false, status: 503, statusText: 'Service Unavailable' };
+    };
+
+    const capClient = new CapabilityClient(mockFetch);
+    const eqClient = new EventQueueClient(capClient);
+    eqClient.queueUrl = 'https://example.com/eq';
+    eqClient.baseDelay = 1000;
+    eqClient.currentDelay = 1000;
+
+    // Call 1: HTTP 504 Gateway Timeout -> resets delay immediately to baseDelay
+    try { await eqClient.pollOnce(); } catch {}
+    assert.equal(eqClient.currentDelay, 1000);
+
+    // Call 2: HTTP 503 Service Unavailable -> exponential backoff to 2000
+    try { await eqClient.pollOnce(); } catch {}
+    assert.equal(eqClient.currentDelay, 2000);
+});
+
 test('MeshAssetDecoder Joint Influence Parsing and Sentinel Support', () => {
-    // Construct mock binary joint influence buffer with extended skeleton joint (>163) and 0xFF sentinel
+    // Construct mock binary joint influence buffer with 16-bit joint indices (including joint 255) and 0xFFFF sentinel
     const mockBuffer = new Uint8Array([
-        0, 0, 128,   // Joint 0, weight ~0.5 (128/255 -> 0.5)
-        165, 0, 255, // Joint 165 (extended skeleton joint > 163), weight ~1.0
-        0xFF         // Sentinel end of list
+        0, 0, 0, 128,      // Joint 0 (0x0000), weight ~0.5 (32768/65535)
+        255, 0, 255, 255,  // Joint 255 (0x00FF), weight 1.0 (65535/65535)
+        255, 255           // Sentinel 0xFFFF
     ]);
 
     const result = MeshAssetDecoder.parseJointInfluences(mockBuffer);
     assert.equal(result.jointInfluences.length, 2);
     assert.equal(result.jointInfluences[0].jointIndex, 0);
-    assert.equal(result.jointInfluences[1].jointIndex, 165); // Successfully parsed joint 165!
+    assert.equal(result.jointInfluences[1].jointIndex, 255); // Successfully parsed joint 255!
     assert.ok(Math.abs(result.jointInfluences[1].weight - 1.0) < 0.01);
 });
 
