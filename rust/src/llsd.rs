@@ -249,3 +249,148 @@ pub fn base64_decode(s: &str) -> Vec<u8> {
     }
     bytes
 }
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Llsd {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Llsd::Undefined => serializer.serialize_unit(),
+            Llsd::Boolean(b) => serializer.serialize_bool(*b),
+            Llsd::Integer(i) => serializer.serialize_i64(*i),
+            Llsd::Real(r) => {
+                if r.is_nan() || r.is_infinite() {
+                    serializer.serialize_unit()
+                } else {
+                    serializer.serialize_f64(*r)
+                }
+            }
+            Llsd::String(s) => serializer.serialize_str(s),
+            Llsd::Uuid(u) => serializer.serialize_str(&u.to_string()),
+            Llsd::Date(d) => serializer.serialize_str(&d.to_iso_string()),
+            Llsd::Uri(u) => serializer.serialize_str(u.as_str()),
+            Llsd::Binary(b) => serializer.serialize_str(&base64_encode(b)),
+            Llsd::Map(m) => {
+                use serde::ser::SerializeMap;
+                let mut map = serializer.serialize_map(Some(m.len()))?;
+                for (k, v) in m {
+                    map.serialize_entry(k, v)?;
+                }
+                map.end()
+            }
+            Llsd::Array(a) => {
+                use serde::ser::SerializeSeq;
+                let mut seq = serializer.serialize_seq(Some(a.len()))?;
+                for v in a {
+                    seq.serialize_element(v)?;
+                }
+                seq.end()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Llsd {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct LlsdVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for LlsdVisitor {
+            type Value = Llsd;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("any valid LLSD JSON value")
+            }
+
+            fn visit_unit<E>(self) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::Undefined)
+            }
+
+            fn visit_none<E>(self) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::Undefined)
+            }
+
+            fn visit_bool<E>(self, v: bool) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::Boolean(v))
+            }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::Integer(v))
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                if v <= i64::MAX as u64 {
+                    Ok(Llsd::Integer(v as i64))
+                } else {
+                    Ok(Llsd::Real(v as f64))
+                }
+            }
+
+            fn visit_f64<E>(self, v: f64) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::Real(v))
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::String(v.to_string()))
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Llsd, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Llsd::String(v))
+            }
+
+            fn visit_map<M>(self, mut access: M) -> Result<Llsd, M::Error>
+            where
+                M: serde::de::MapAccess<'de>,
+            {
+                let mut map = BTreeMap::new();
+                while let Some((key, value)) = access.next_entry::<String, Llsd>()? {
+                    map.insert(key, value);
+                }
+                Ok(Llsd::Map(map))
+            }
+
+            fn visit_seq<A>(self, mut access: A) -> Result<Llsd, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut seq = Vec::new();
+                while let Some(element) = access.next_element::<Llsd>()? {
+                    seq.push(element);
+                }
+                Ok(Llsd::Array(seq))
+            }
+        }
+
+        deserializer.deserialize_any(LlsdVisitor)
+    }
+}
+

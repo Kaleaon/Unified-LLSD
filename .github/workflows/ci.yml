@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   conformance-tests:
     runs-on: ubuntu-latest
@@ -23,6 +27,8 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'bindings/typescript/package-lock.json'
       - name: Run TypeScript Tests
         run: |
           cd bindings/typescript
@@ -38,6 +44,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -56,10 +63,63 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: 'csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj'
       - name: Build C# SDK Package
         run: dotnet build csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj -c Release
       - name: Run C# SDK Tests
         run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
+
+  cpp-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@0d6a7d60b009d01c9e7523be22153ff8f19460d3 # v2
+        with:
+          cmake-version: '3.28.x'
+      - name: Build C++ SDK
+        run: |
+          cd cpp
+          cmake -B build
+          cmake --build build
+      - name: Run C++ SDK Tests
+        run: |
+          cd cpp
+          ./build/test_llsd
+
+  rust-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Run Rust SDK Tests
+        run: |
+          cd rust
+          cargo test
+
+  dart-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1
+        with:
+          sdk: stable
+      - name: Run Dart SDK Tests
+        run: |
+          cd dart
+          dart test
+
+  swift-sdk:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Run Swift SDK Tests
+        run: |
+          cd swift
+          swift test
 
   workflow-lint:
     runs-on: ubuntu-latest

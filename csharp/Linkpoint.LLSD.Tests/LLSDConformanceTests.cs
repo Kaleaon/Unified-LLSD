@@ -176,7 +176,7 @@ namespace Linkpoint.LLSD.Tests
             Assert.Equal("lowest_lod", AssetSchemaConstants.GetLodKey(DetailLevel.Lowest));
 
             Assert.Equal(256, AssetSchemaConstants.MAX_RIGGED_MESH_JOINTS);
-            Assert.Equal(0xFF, AssetSchemaConstants.JOINT_SENTINEL);
+            Assert.Equal(0xFFFF, AssetSchemaConstants.JOINT_SENTINEL);
         }
     }
 }
