@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   conformance-tests:
     runs-on: ubuntu-latest
@@ -22,7 +26,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'bindings/typescript/package-lock.json'
       - name: Run TypeScript Tests
         run: |
           cd bindings/typescript
@@ -38,6 +44,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -56,8 +63,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: 'csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj'
       - name: Build C# SDK Package
         run: dotnet build csharp/Linkpoint.LLSD/Linkpoint.LLSD.csproj -c Release
       - name: Run C# SDK Tests
         run: dotnet run --project csharp/Linkpoint.LLSD.Tests/Linkpoint.LLSD.Tests.csproj -c Release
-
