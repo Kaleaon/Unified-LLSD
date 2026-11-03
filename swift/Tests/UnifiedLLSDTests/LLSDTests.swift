@@ -59,4 +59,13 @@ final class LLSDTests: XCTestCase {
         let fractionalParsed = LLSD.string("2023-05-18T12:34:56.789Z").asDate()
         XCTAssertEqual(fractionalParsed.secondsSinceEpoch, 1684413296.789, accuracy: 0.001)
     }
+
+    static var allTests = [
+        ("test64BitIntegerHandling", test64BitIntegerHandling),
+        ("testBinaryDateLittleEndian", testBinaryDateLittleEndian),
+        ("testNotationRoundtrip", testNotationRoundtrip),
+        ("testDateParsingFractionalAndStandard", testDateParsingFractionalAndStandard),
+        ("testDateDescriptionFormatting", testDateDescriptionFormatting),
+        ("testDateSerializationXMLRoundtrip", testDateSerializationXMLRoundtrip),
+    ]
 }
